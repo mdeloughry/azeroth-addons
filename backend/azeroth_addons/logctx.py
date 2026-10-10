@@ -31,10 +31,35 @@ SENSITIVE_ENV_KEYS = frozenset(
     }
 )
 
-_SECRET_PATTERNS = (
-    re.compile(r"(?i)(x-api-key|api[-_]?key|authorization|bearer|token)\s*[:=]\s*([^\s,;\"']{4,})"),
-    re.compile(r"(?i)\b(INSTAWOW_ACCESS_TOKENS_[A-Z]+|AZEROTH_[A-Z_]*TOKEN|AZEROTH_CF_API_KEY)\s*=\s*\S+"),
+# Ordered redaction rules. Group indices matter: each rule keeps its marker and
+# replaces only the secret, so the log stays readable.
+_REDACTIONS: tuple[tuple[re.Pattern[str], str], ...] = (
+    # "x-api-key: abc123", "api_key=abc123", "Authorization: Bearer abc123".
+    # The optional scheme word is consumed so the *token* is what gets removed -
+    # redacting the word "Bearer" would leave the secret in the log.
+    (
+        re.compile(
+            r"(?i)\b(x-api-key|api[-_]?key|authorization|access[-_]?token|auth[-_]?token|token|secret|password)"
+            r"\b(\s*[:=]\s*)(?:(?:bearer|basic|token)\s+)?(\S+)"
+        ),
+        r"\1\2<redacted>",
+    ),
+    # A bare credential with no preceding key, e.g. "Bearer eyJhbGci...".
+    (re.compile(r"(?i)\bbearer\s+([A-Za-z0-9\-._~+/=]{8,})"), "Bearer <redacted>"),
+    # Environment-style assignments.
+    (
+        re.compile(r"(?i)\b(INSTAWOW_ACCESS_TOKENS_[A-Z]+|AZEROTH_[A-Z_]*TOKEN|AZEROTH_CF_API_KEY)\s*=\s*\S+"),
+        r"\1=<redacted>",
+    ),
 )
+
+
+def redact(text: str) -> str:
+    """Strip credential-shaped substrings from arbitrary text."""
+    redacted = text or ""
+    for pattern, replacement in _REDACTIONS:
+        redacted = pattern.sub(replacement, redacted)
+    return redacted
 
 
 def get_logger() -> logging.Logger:
@@ -78,14 +103,6 @@ def ctx(**fields: Any) -> str:
             continue
         parts.append(f"{key}={value}")
     return " ".join(parts)
-
-
-def redact(text: str) -> str:
-    """Strip credential-shaped substrings from arbitrary text."""
-    redacted = text or ""
-    for pattern in _SECRET_PATTERNS:
-        redacted = pattern.sub(lambda m: f"{m.group(1)}=<redacted>", redacted)
-    return redacted
 
 
 def safe_env(env: Mapping[str, str]) -> dict[str, str]:
