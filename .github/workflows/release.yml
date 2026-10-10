@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish the installable plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Fetch the pinned engine and verify its checksum
+        run: ./scripts/fetch-instawow.sh
+
+      - name: Verify the bundled engine starts
+        run: bin/instawow --version
+
+      - name: Build the plugin archive
+        run: ./scripts/package-release.sh
+
+      # A stable asset name means the install URL never changes between
+      # releases: Decky's "install from URL" field can be reused verbatim.
+      - name: Prepare the stable asset name
+        run: cp release/azeroth-addons-*.zip azeroth-addons.zip
+
+      - name: Publish the release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" azeroth-addons.zip --clobber
+          else
+            gh release create "${TAG}" azeroth-addons.zip \
+              --title "Azeroth Addons ${TAG}" \
+              --notes "Installable Decky plugin build. See the README for install steps."
+          fi
