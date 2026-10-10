@@ -146,6 +146,59 @@ There is also a **direct CurseForge API** provider built in. It ships
 
 ---
 
+## Error tracking and diagnostics
+
+**Two layers, and the private one is the default.**
+
+1. **Local journal - always on, never leaves the device.** Every error the
+   backend or the UI produces is recorded on the device.
+2. **Remote reporting - off until you turn it on.** Point it at a destination
+   you control.
+
+### The local journal
+
+1. Records every structured error with its code, message, context
+   (`installation`, `engine`, `provider`, `operation`) and stack frames.
+2. **Redacts at ingestion**, so sensitive text never even reaches the file:
+   credentials are stripped, usernames are removed from paths, and paths inside
+   the plugin are rewritten relative.
+3. Is bounded (200 events), folds repeats together with a `×N` count, and lives
+   at `<plugin settings dir>/error-journal.json`.
+
+Open **Azeroth Addons → Diagnostics** to read it, expand an event, or clear it.
+
+### Remote reporting (opt-in)
+
+Reports are sent using the **Sentry protocol** (the Store API), so they land in
+[GlitchTip](https://glitchtip.com), Bugsink or Sentry with no extra tooling -
+and **no SDK**, because the backend is stdlib-only.
+
+1. Deploy **GlitchTip** (self-hosted, MIT, Sentry-compatible) using its official
+   Docker Compose install.
+2. Create a project in GlitchTip and copy its **DSN**.
+3. In Azeroth Addons, open **Diagnostics → Send error reports**.
+4. Paste the **DSN**, press **Save destination**, then **Send a test report**.
+5. Turn **Send error reports** on. Errors appear in GlitchTip from then on.
+
+Prefer a webhook? Switch the destination type to **Plain JSON webhook** and the
+documented event JSON is POSTed to your URL instead.
+
+### What is sent, and what is not
+
+**Sent:** plugin version, Python/platform, engine name and version, the error
+code and message, redacted details, stack frames, and the context tags.
+
+**Never sent:** API keys, tokens, the DSN, your username, your home directory,
+absolute plugin paths, addon names, or any device identifier.
+
+Before enabling, press **Preview what would be sent** to see the exact request
+body. The destination must be HTTPS (plain HTTP only for loopback), sends are
+rate limited, and a failure is reported in the UI rather than retried in a loop.
+
+
+
+---
+
 ## Architecture
 
 ```text
@@ -226,9 +279,10 @@ azeroth-addons/
 │   ├── api.ts                 typed RPC + event subscription
 │   ├── state.tsx              one hook owns all backend interaction
 │   ├── components/            rows, badges, progress
-│   └── views/                 QAM panel + full page
+│   └── views/                 QAM panel + full page (incl. Diagnostics)
 ├── backend/azeroth_addons/
 │   ├── installations/         models, flavours, discovery, registry
+│   ├── telemetry/             error journal, redaction, Sentry reporter
 │   ├── engines/               base, registry, instawow adapter + engine
 │   ├── providers/             base, registry, http, concrete providers
 │   ├── addons/                models, service, search aggregator
@@ -271,6 +325,7 @@ Run this once on hardware after installing:
 | `INSTALLATION_UNAVAILABLE` | SD card / drive not mounted | Reconnect and rescan; the installation is never deleted |
 | A source is `degraded` | Upstream problem or rate limit | Other sources keep working; add a credential to raise limits |
 | `ENGINE_UNSUPPORTED` on Rollback | Rollback is interactive in the engine | Enable **Experimental rollback** in Settings |
+| Something failed and you are unsure why | The journal has the answer | **Diagnostics** tab → expand the event |
 
 ---
 

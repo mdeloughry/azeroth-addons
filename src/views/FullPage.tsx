@@ -1,20 +1,23 @@
 import { ButtonItem, Focusable, Navigation, PanelSection, PanelSectionRow, Spinner } from "@decky/ui";
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 
 import { Badge } from "../components/Badges";
+import { setReportingView } from "../reporting";
 import { usePlugin } from "../state";
 import { AddonsView } from "./AddonsView";
+import { DiagnosticsView } from "./DiagnosticsView";
 import { InstallationsView } from "./InstallationsView";
 import { SearchView } from "./SearchView";
 import { SettingsView } from "./SettingsView";
 
-type Tab = "addons" | "find" | "installations" | "settings";
+type Tab = "addons" | "find" | "installations" | "settings" | "diagnostics";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "addons", label: "Addons" },
   { id: "find", label: "Find Addons" },
   { id: "installations", label: "Installations" },
   { id: "settings", label: "Settings" },
+  { id: "diagnostics", label: "Diagnostics" },
 ];
 
 const HEADER: React.CSSProperties = {
@@ -52,6 +55,11 @@ export const FullPage: FC<{ initialTab?: Tab }> = ({ initialTab = "addons" }) =>
   const [tab, setTab] = useState<Tab>(initialTab);
   const engine = plugin.status?.engine ?? plugin.engines[0] ?? null;
   const updateCount = Math.max(plugin.updates.length, plugin.installed?.counts.updates ?? 0);
+
+  // Frontend error reports carry the view they happened in.
+  useEffect(() => {
+    setReportingView(tab);
+  }, [tab]);
 
   return (
     <div style={{ padding: "16px", height: "100%", overflowY: "auto" }}>
@@ -111,6 +119,7 @@ export const FullPage: FC<{ initialTab?: Tab }> = ({ initialTab = "addons" }) =>
       {tab === "find" ? <SearchView /> : null}
       {tab === "installations" ? <InstallationsView /> : null}
       {tab === "settings" ? <SettingsView /> : null}
+      {tab === "diagnostics" ? <DiagnosticsView /> : null}
     </div>
   );
 };

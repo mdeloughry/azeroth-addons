@@ -11,7 +11,7 @@ import asyncio
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Mapping
 
 from . import (
     BUNDLED_INSTAWOW_ARTIFACT,
@@ -26,7 +26,7 @@ from .addons.service import AddonService
 from .engines import factory as engine_factory
 from .engines.base import EngineStatus
 from .engines.registry import EngineRegistry
-from .errors import NOT_READY, AzerothAddonsError
+from .errors import NOT_READY, AzerothAddonsError, set_error_sink
 from .installations.discovery import default_environment, quick_pick_locations
 from .installations.manager import InstallationManager
 from .logctx import get_logger, mask_secret
@@ -39,6 +39,9 @@ from .settings import (
     JsonStore,
     SettingsStore,
 )
+from .telemetry import privacy
+from .telemetry.journal import ErrorEvent, ErrorJournal
+from .telemetry.reporter import ErrorReporter
 
 logger = get_logger()
 
@@ -104,7 +107,11 @@ class AzerothAddonsContext:
 
         self.service: AddonService
         self.search: AddonSearchService
+        self.journal: ErrorJournal
+        self.reporter: ErrorReporter
         self._prepare_task: asyncio.Task | None = None
+        self._report_tasks: set[asyncio.Task] = set()
+        self._last_engine_status: EngineStatus | None = None
 
     # --- lifecycle ---------------------------------------------------------
 
@@ -113,6 +120,14 @@ class AzerothAddonsContext:
             return self
         self.settings.load()
         self._ensure_runtime_dirs()
+
+        # Paths inside the plugin are reported relative, so nothing leaks where
+        # the plugin happens to live.
+        privacy.configure(plugin_root=self.env.plugin_dir)
+
+        self.reporter = ErrorReporter(self.settings, runtime_provider=self.runtime_info)
+        self.journal = ErrorJournal(self.store, on_event=self._on_error_event)
+        set_error_sink(self._record_error)
 
         provider_factory.build_registry(self.settings, self.providers)
         engine_factory.build_registry(
@@ -170,10 +185,102 @@ class AzerothAddonsContext:
             logger.debug("emit %s failed: %s", event, exc)
 
     async def _on_engine_status(self, status: EngineStatus) -> None:
+        self._last_engine_status = status
         await self.emit(events.RUNTIME_STATUS, self.runtime_status(status))
 
     async def announce_runtime_status(self) -> None:
         await self.emit(events.RUNTIME_STATUS, self.runtime_status())
+
+    # --- diagnostics -------------------------------------------------------
+
+    def _record_error(self, fields: Mapping[str, Any]) -> None:
+        """Sink for :mod:`errors`; called synchronously from the RPC guard."""
+        context = dict(fields.get("context") or {})
+        self.journal.record(
+            ErrorEvent.build(
+                code=str(fields.get("code") or "UNKNOWN"),
+                message=str(fields.get("message") or ""),
+                details=fields.get("details"),
+                source=str(fields.get("source") or "backend"),
+                severity=str(fields.get("severity") or "error"),
+                frames=list(fields.get("frames") or []),
+                **context,
+            )
+        )
+
+    def _on_error_event(self, payload: dict[str, Any]) -> None:
+        """Forward a journal entry to the reporter when reporting is enabled."""
+        if not self.reporter.enabled():
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:  # pragma: no cover - no loop outside the plugin runtime
+            return
+        task = loop.create_task(self.reporter.maybe_send(payload))
+        self._report_tasks.add(task)
+        task.add_done_callback(self._report_tasks.discard)
+
+    def runtime_info(self) -> dict[str, Any]:
+        import platform as _platform
+
+        info: dict[str, Any] = {
+            "pluginVersion": __version__,
+            "python": _platform.python_version(),
+            "platform": f"{_platform.system()} {_platform.machine()}",
+        }
+        decky_version = os.environ.get("DECKY_VERSION")
+        if decky_version:
+            info["decky"] = decky_version
+        status = self._last_engine_status
+        if status is not None:
+            info["engine"] = f"{status.engine_id} {status.version}".strip() if status.version else status.engine_id
+            info["engineState"] = status.state
+        return info
+
+    def journal_payload(self, limit: int = 50) -> dict[str, Any]:
+        return {
+            "events": self.journal.events(limit),
+            "summary": self.journal.summary(),
+            "journalPath": str(self.store.path("error-journal.json")),
+        }
+
+    def clear_journal(self) -> dict[str, Any]:
+        self.journal.clear()
+        return self.journal_payload()
+
+    def record_frontend_error(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        """Accept an error reported by the UI (a crash, or an unhandled rejection)."""
+        details = payload.get("details")
+        if details in (None, "") and payload.get("stack"):
+            details = payload.get("stack")
+        event = ErrorEvent.build(
+            code=str(payload.get("code") or "UI_ERROR")[:80],
+            message=str(payload.get("message") or "The interface reported an error."),
+            details=str(details)[:4000] if details else None,
+            source="frontend",
+            severity=str(payload.get("severity") or "error"),
+            view=payload.get("view"),
+        )
+        return self.journal.record(event)
+
+    def reporting_payload(self) -> dict[str, Any]:
+        return {
+            "status": self.reporter.status(),
+            "preview": self.reporter.preview(),
+            "journal": self.journal.summary(),
+        }
+
+    async def send_test_report(self) -> dict[str, Any]:
+        result = await self.reporter.send_test()
+        return {"result": result, "status": self.reporter.status()}
+
+    def shutdown(self) -> None:
+        """Detach the error sink and stop pending reports."""
+        set_error_sink(None)
+        for task in list(self._report_tasks):
+            if not task.done():
+                task.cancel()
+        self._report_tasks.clear()
 
     # --- engine warm-up ----------------------------------------------------
 

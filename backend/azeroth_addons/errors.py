@@ -8,6 +8,7 @@ Exceptions never escape raw, so the frontend always receives a code it can act o
 from __future__ import annotations
 
 import functools
+import linecache
 import traceback
 from typing import Any, Awaitable, Callable, Mapping, TypeVar
 
@@ -124,6 +125,56 @@ def fail(error: AzerothAddonsError | Exception) -> dict[str, Any]:
 
 T = TypeVar("T")
 
+# --- error sink -------------------------------------------------------------
+#
+# The journal lives in :mod:`telemetry`; ``errors`` must not depend on it, so the
+# application installs a sink at startup. A failing sink can never break a call.
+
+ErrorSink = Callable[[Mapping[str, Any]], None]
+
+_error_sink: ErrorSink | None = None
+
+
+def set_error_sink(sink: ErrorSink | None) -> None:
+    """Install (or clear) the destination for every recorded error."""
+    global _error_sink
+    _error_sink = sink
+
+
+def _emit_to_sink(fields: Mapping[str, Any]) -> None:
+    if _error_sink is None:
+        return
+    try:
+        _error_sink(fields)
+    except Exception as exc:  # noqa: BLE001 - diagnostics must never break a call
+        get_logger().debug("error sink failed: %s", exc)
+
+
+def _source_line(tb: Any) -> str | None:
+    try:
+        line = linecache.getline(tb.tb_frame.f_code.co_filename, tb.tb_lineno, tb.tb_frame.f_globals)
+    except Exception:  # noqa: BLE001 - source may be unavailable
+        return None
+    return line.strip() or None
+
+
+def extract_frames(exc: BaseException) -> list[dict[str, Any]]:
+    """Capture a traceback as structured frames for error tracking."""
+    frames: list[dict[str, Any]] = []
+    tb = exc.__traceback__
+    while tb is not None:
+        code = tb.tb_frame.f_code
+        frames.append(
+            {
+                "filename": code.co_filename,
+                "lineno": tb.tb_lineno,
+                "function": code.co_name,
+                "line": _source_line(tb),
+            }
+        )
+        tb = tb.tb_next
+    return frames
+
 
 def rpc(fn: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[dict[str, Any]]]:
     """Wrap a plugin method so it always returns an envelope and never raises."""
@@ -136,10 +187,32 @@ def rpc(fn: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[dict[str, An
             return ok(await fn(*args, **kwargs))
         except AzerothAddonsError as exc:
             logger.warning("rpc %s failed: %s (%s)", name, exc.message, exc.code)
+            _emit_to_sink(
+                {
+                    "code": exc.code,
+                    "message": exc.message,
+                    "details": exc.details,
+                    "context": {
+                        "operation": name,
+                        "installation": exc.installation_id,
+                        "provider": exc.provider,
+                        "engine": exc.engine,
+                    },
+                }
+            )
             return fail(exc)
         except Exception as exc:  # noqa: BLE001 - boundary guard by design
             logger.error("rpc %s crashed: %s", name, exc)
             logger.debug("rpc %s traceback:\n%s", name, traceback.format_exc())
+            _emit_to_sink(
+                {
+                    "code": INTERNAL_ERROR,
+                    "message": "An unexpected internal error occurred.",
+                    "details": f"{type(exc).__name__}: {exc}",
+                    "context": {"operation": name},
+                    "frames": extract_frames(exc),
+                }
+            )
             return fail(
                 AzerothAddonsError(
                     INTERNAL_ERROR,

@@ -17,12 +17,15 @@ import {
   InstallationsPayload,
   InstallationsSummary,
   InstalledPayload,
+  JournalPayload,
   PathPreview,
   ProfileStatus,
   ProviderListPayload,
   ProviderStatus,
+  ReportingPayload,
   RuntimeStatus,
   SearchPayload,
+  SendTestResult,
   SettingsPayload,
   UpdateAllResult,
   UpdatesPayload,
@@ -122,6 +125,14 @@ export const api = {
     rpc<[string, string], { installationId: string; removed: Addon }>("remove_addon", installationId, addonId),
   rollbackAddon: (installationId: string, addonId: string) =>
     rpc<[string, string], { installationId: string; addon: Addon }>("rollback_addon", installationId, addonId),
+
+  // diagnostics
+  getErrorJournal: (limit = 50) => rpc<[number], JournalPayload>("get_error_journal", limit),
+  clearErrorJournal: () => rpc<[], JournalPayload>("clear_error_journal"),
+  reportFrontendError: (payload: Record<string, unknown>) =>
+    rpc<[Record<string, unknown>], { recorded: boolean; eventId?: string }>("report_frontend_error", payload),
+  getErrorReporting: () => rpc<[], ReportingPayload>("get_error_reporting"),
+  sendTestErrorReport: () => rpc<[], SendTestResult>("send_test_error_report"),
 
   // settings
   getSettings: () => rpc<[], SettingsPayload>("get_settings"),

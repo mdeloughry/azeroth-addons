@@ -266,3 +266,33 @@ deviations recorded below.
 3. Live provider responses (`list --format json`, `search`, `update --dry-run`)
    against the real engine, to confirm the tolerant parsers match upstream
    output. The parsers log a warning if the shape drifts.
+
+---
+
+## Error tracking (added after the MVP)
+
+Two layers, privacy-first.
+
+1. **Local journal, always on** - `telemetry/privacy.py`, `telemetry/journal.py`.
+   Redacted at ingestion, bounded to 200 events, repeats folded into a count,
+   persisted at `<settings>/error-journal.json`. Nothing leaves the device.
+2. **Opt-in remote reporting** - `telemetry/reporter.py`, `telemetry/sentry.py`.
+   Implements the Sentry **Store API** directly, with no SDK, so the backend
+   stays stdlib-only and reports still land in a proven tool (GlitchTip,
+   Bugsink or Sentry). Off by default, with the exact request previewable,
+   HTTPS required (loopback may use HTTP), rate limited, and failures surfaced
+   in the UI instead of retried in a loop.
+
+Decisions taken:
+
+1. **A destination, not a vendor.** The SDK-based options are excluded twice
+   over: the backend cannot install packages, and a public plugin would make
+   the author a data controller for other people's telemetry. Implementing the
+   protocol once keeps the destination a leaf that can be swapped.
+2. **The DSN is a credential**, not a setting. It is stored with the other
+   credentials (mode 0600), never returned to the frontend, and the UI only
+   ever shows a keyless form (`https://host/project`).
+3. **Two redaction bugs were found by the new tests**: `Authorization: Bearer
+   <token>` was redacting the scheme word and leaving the token, and a bare
+   `token` key was not treated as sensitive. Both are fixed, with tests.
+4. **Engine-backed sources are no longer labelled "unavailable"** (see below).

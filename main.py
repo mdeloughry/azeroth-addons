@@ -74,6 +74,7 @@ class Plugin:
     async def _unload(self) -> None:
         if self._context is not None:
             self._context.cancel_tasks()
+            self._context.shutdown()
         logger.info("Azeroth Addons stopped")
 
     async def _uninstall(self) -> None:
@@ -273,6 +274,31 @@ class Plugin:
     async def rollback_addon(self, installation_id: str, addon_id: str) -> dict[str, Any]:
         addon = await self._ctx().service.rollback(installation_id, addon_id)
         return {"installationId": installation_id, "addon": addon.to_dict()}
+
+    # -- diagnostics --------------------------------------------------------
+
+    @rpc
+    async def get_error_journal(self, limit: int = 50) -> dict[str, Any]:
+        return self._ctx().journal_payload(int(limit or 50))
+
+    @rpc
+    async def clear_error_journal(self) -> dict[str, Any]:
+        return self._ctx().clear_journal()
+
+    @rpc
+    async def report_frontend_error(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(payload, dict):
+            raise AzerothAddonsError(INVALID_ARGUMENT, "An error report must be an object.")
+        event = self._ctx().record_frontend_error(payload)
+        return {"recorded": True, "eventId": event.get("id")}
+
+    @rpc
+    async def get_error_reporting(self) -> dict[str, Any]:
+        return self._ctx().reporting_payload()
+
+    @rpc
+    async def send_test_error_report(self) -> dict[str, Any]:
+        return await self._ctx().send_test_report()
 
     # -- settings -----------------------------------------------------------
 

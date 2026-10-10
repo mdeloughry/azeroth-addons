@@ -98,6 +98,11 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "curseForgeServiceUrl": None,
     "sourcePreference": "automatic",
     "autoCheckUpdates": True,
+    # Error reporting is off unless the user turns it on and sets a destination.
+    # The DSN itself lives in the credential store, never in plain settings.
+    "enableErrorReporting": False,
+    "errorReportingFormat": "sentry",
+    "errorReportingEndpoint": "",
 }
 
 # Keys the frontend is allowed to write. Keeps an arbitrary RPC payload from
@@ -109,10 +114,16 @@ SETTABLE_KEYS = frozenset(
         "curseForgeServiceUrl",
         "sourcePreference",
         "autoCheckUpdates",
+        "enableErrorReporting",
+        "errorReportingFormat",
+        "errorReportingEndpoint",
     }
 )
 
-CREDENTIAL_KEYS = ("curseforge", "github", "wago", "wowinterface")
+# Credentials are stored separately, with mode 0600, and are never returned to
+# the frontend - only a masked hint is. The Sentry DSN lives here too: it
+# carries a key, and the UI only ever needs a keyless form of it.
+CREDENTIAL_KEYS = ("curseforge", "github", "wago", "wowinterface", "sentry")
 
 
 class SettingsStore:

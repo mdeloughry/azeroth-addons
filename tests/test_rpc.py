@@ -259,3 +259,151 @@ async def test_mutating_routes_report_a_missing_engine(tmp_path: Path, monkeypat
     assert envelope["ok"] is False
     assert envelope["error"]["code"] == "ENGINE_UNAVAILABLE"
     assert "missing" in envelope["error"]["message"].lower()
+
+
+# --- diagnostics ------------------------------------------------------------
+
+
+async def test_failed_routes_are_recorded_in_the_journal(plugin):
+    envelope = await plugin.get_installed_addons("retail-nope")
+    assert envelope["ok"] is False
+
+    journal = await plugin.get_error_journal()
+    assert journal["ok"] is True
+    events = journal["data"]["events"]
+    assert events, "the failure should have been journalled"
+    assert events[0]["code"] == "INSTALLATION_NOT_FOUND"
+    assert events[0]["context"]["operation"] == "get_installed_addons"
+    assert events[0]["context"]["installation"] == "retail-nope"
+    assert journal["data"]["summary"]["stored"] >= 1
+    assert journal["data"]["journalPath"].endswith("error-journal.json")
+
+
+async def test_repeated_failures_are_folded_together(plugin):
+    for _ in range(3):
+        await plugin.get_installed_addons("retail-nope")
+    journal = await plugin.get_error_journal()
+    assert len(journal["data"]["events"]) == 1
+    assert journal["data"]["events"][0]["count"] == 3
+
+
+async def test_unexpected_exceptions_are_journalled_with_frames(plugin, wow_root: Path, monkeypatch):
+    await plugin.add_custom_installation(str(wow_root))
+    listed = await plugin.get_installations()
+    installation_id = listed["data"]["selectedId"]
+
+    context = plugin._context  # noqa: SLF001 - the boundary under test
+
+    async def explode(*_args, **_kwargs):
+        raise RuntimeError("kaboom inside the service")
+
+    monkeypatch.setattr(context.service, "check_updates", explode)
+    envelope = await plugin.check_updates(installation_id)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "INTERNAL_ERROR"
+
+    journal = await plugin.get_error_journal()
+    event = next(item for item in journal["data"]["events"] if item["code"] == "INTERNAL_ERROR")
+    assert "kaboom" in (event["details"] or "")
+    assert event["frames"], "structured frames should be captured for grouping"
+    assert event["frames"][-1]["function"] == "explode"
+
+
+async def test_frontend_errors_are_accepted(plugin):
+    envelope = await plugin.report_frontend_error(
+        {
+            "code": "UI_CRASH",
+            "message": "Cannot read properties of undefined",
+            "stack": "at FullPage (index.js:1:2)",
+            "view": "settings",
+        }
+    )
+    assert envelope["ok"] is True
+    assert envelope["data"]["recorded"] is True
+
+    journal = await plugin.get_error_journal()
+    event = journal["data"]["events"][0]
+    assert event["code"] == "UI_CRASH"
+    assert event["source"] == "frontend"
+    assert "FullPage" in (event["details"] or "")
+
+
+async def test_frontend_error_route_rejects_junk(plugin):
+    envelope = await plugin.report_frontend_error(["not", "an", "object"])  # type: ignore[arg-type]
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "INVALID_ARGUMENT"
+
+
+async def test_journal_can_be_cleared(plugin):
+    await plugin.get_installed_addons("retail-nope")
+    cleared = await plugin.clear_error_journal()
+    assert cleared["ok"] is True
+    assert cleared["data"]["events"] == []
+    assert cleared["data"]["summary"]["stored"] == 0
+
+
+async def test_reporting_is_off_by_default_and_sends_nothing(plugin, monkeypatch):
+    import urllib.request
+
+    def explode(*_args, **_kwargs):  # pragma: no cover - must never be reached
+        raise AssertionError("nothing may be transmitted while reporting is off")
+
+    monkeypatch.setattr(urllib.request, "urlopen", explode)
+
+    reporting = await plugin.get_error_reporting()
+    assert reporting["ok"] is True
+    assert reporting["data"]["status"]["enabled"] is False
+    assert reporting["data"]["status"]["usable"] is False
+    assert reporting["data"]["preview"]["problem"]  # explains what is missing
+
+    # A real failure still records locally, without any network traffic.
+    await plugin.get_installed_addons("retail-nope")
+    journal = await plugin.get_error_journal()
+    assert journal["data"]["events"]
+
+
+async def test_reporting_status_exposes_no_dsn_key(plugin, tmp_path: Path):
+    secret_dsn = "https://verysecretkey@glitchtip.example.com/7"
+    saved = await plugin.set_credential("sentry", secret_dsn)
+    assert saved["ok"] is True
+    assert "verysecretkey" not in json.dumps(saved["data"])
+    assert saved["data"]["credentials"]["sentry"]["configured"] is True
+
+    await plugin.set_settings({"enableErrorReporting": True, "errorReportingFormat": "sentry"})
+    reporting = await plugin.get_error_reporting()
+    assert reporting["data"]["status"]["enabled"] is True
+    assert reporting["data"]["status"]["usable"] is True
+    # The UI gets a keyless form of the destination, never the DSN itself.
+    assert "verysecretkey" not in json.dumps(reporting["data"])
+    assert reporting["data"]["status"]["destination"] == "https://glitchtip.example.com/7"
+
+
+async def test_send_test_report_posts_to_the_store_api(plugin, monkeypatch):
+    await plugin.set_credential("sentry", "https://testkey@glitchtip.example.com/7")
+    await plugin.set_settings({"errorReportingFormat": "sentry"})
+
+    context = plugin._context  # noqa: SLF001 - the boundary under test
+    calls: list[tuple[str, dict]] = []
+
+    def fake_post(url, headers, body):
+        calls.append((url, headers))
+        return 200
+
+    monkeypatch.setattr(context.reporter, "_post_sync", fake_post)
+    envelope = await plugin.send_test_error_report()
+    assert envelope["ok"] is True
+    assert envelope["data"]["result"] == {"sent": True, "status": 200}
+
+    url, headers = calls[0]
+    assert url == "https://glitchtip.example.com/api/7/store/"
+    assert "testkey" in headers["X-Sentry-Auth"]
+
+
+async def test_error_journal_survives_a_restart(tmp_path: Path, monkeypatch):
+    first = build_plugin(tmp_path / "persist", monkeypatch)
+    await first.get_installed_addons("retail-nope")
+
+    second = build_plugin(tmp_path / "persist", monkeypatch)
+    journal = await second.get_error_journal()
+    assert journal["data"]["events"], "the journal should be reloaded from disk"
+    assert journal["data"]["events"][0]["code"] == "INSTALLATION_NOT_FOUND"

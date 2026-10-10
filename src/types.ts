@@ -215,3 +215,76 @@ export interface ProviderListPayload {
   providers: ProviderStatus[];
   enabled: string[];
 }
+
+// --- diagnostics ------------------------------------------------------------
+
+export interface StackFrame {
+  filename?: string;
+  function?: string;
+  lineno?: number;
+  line?: string;
+}
+
+export interface JournalEvent {
+  id: string;
+  timestamp: string;
+  source: string;
+  severity: string;
+  code: string;
+  message: string;
+  fingerprint: string;
+  count: number;
+  details?: string;
+  context?: Record<string, unknown>;
+  frames?: StackFrame[];
+}
+
+export interface JournalSummary {
+  stored: number;
+  total: number;
+  distinctCodes: number;
+  byCode: Record<string, number>;
+  lastAt: string | null;
+}
+
+export interface JournalPayload {
+  events: JournalEvent[];
+  summary: JournalSummary;
+  journalPath: string;
+}
+
+export interface ReportingPreview {
+  schemaVersion: number;
+  format: string;
+  enabled: boolean;
+  destination: string;
+  problem: string | null;
+  request: { url: string; headers: Record<string, string>; body: unknown } | null;
+}
+
+export interface ReportingStatus {
+  enabled: boolean;
+  usable: boolean;
+  format: string;
+  formats: string[];
+  destination: string;
+  problem: string | null;
+  schemaVersion: number;
+  sent: number;
+  failed: number;
+  lastSentAt: string | null;
+  lastError: string | null;
+  maxPerHour: number;
+  sendsThisHour: number;
+}
+
+export interface ReportingPayload {
+  status: ReportingStatus;
+  preview: ReportingPreview;
+  journal: JournalSummary;
+}
+
+export interface SendTestResult {
+  result: { sent: boolean; status?: number; reason?: string };
+  status: ReportingStatus;
+}
