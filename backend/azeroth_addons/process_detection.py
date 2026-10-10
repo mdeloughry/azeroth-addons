@@ -16,7 +16,6 @@ import re
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
-from .logctx import get_logger
 from .security import canonical
 
 _PROC_NAME = re.compile(r"^\d+$")
@@ -57,27 +56,49 @@ def installation_needles(installation_root: str) -> tuple[str, ...]:
     return tuple(needle for needle in needles if len(needle) > 3)
 
 
-def iter_process_strings(proc_root: str | os.PathLike[str] = "/proc") -> Iterator[str]:
-    """Yield the command line / exe / cwd of every readable process."""
-    root = Path(proc_root)
+def _readlink(path: Path) -> str:
+    """Resolve a /proc symlink, tolerating anything we are not allowed to read."""
     try:
-        entries = os.scandir(root)
+        return os.readlink(path)
+    except OSError:
+        # EACCES for processes owned by another user (PID 1, system daemons),
+        # EINVAL when the entry is not a symlink, ENOENT when it just exited.
+        return ""
+
+
+def iter_process_strings(proc_root: str | os.PathLike[str] = "/proc") -> Iterator[str]:
+    """Yield the command line / exe / cwd of every process we can read.
+
+    The scan must never raise: the process table contains entries owned by
+    other users, and a failure here would take down every addon operation
+    (the running-game gate calls this).
+    """
+    pids: list[str] = []
+    try:
+        with os.scandir(proc_root) as scandir:
+            for entry in scandir:
+                try:
+                    if _PROC_NAME.match(entry.name) and entry.is_dir():
+                        pids.append(entry.path)
+                except OSError:
+                    continue
     except OSError:
         return
-    with entries:
-        for entry in entries:
-            if not entry.is_dir() or not _PROC_NAME.match(entry.name):
-                continue
-            pid_dir = Path(entry.path)
+
+    for pid_path in pids:
+        pid_dir = Path(pid_path)
+        try:
             cmdline = _read_text(pid_dir / "cmdline")
             if cmdline:
                 yield cmdline
-            cwd = os.readlink(pid_dir / "cwd") if os.path.islink(pid_dir / "cwd") else ""
+            cwd = _readlink(pid_dir / "cwd")
             if cwd:
                 yield cwd
-            exe = os.readlink(pid_dir / "exe") if os.path.islink(pid_dir / "exe") else ""
+            exe = _readlink(pid_dir / "exe")
             if exe:
                 yield exe
+        except OSError:  # pragma: no cover - defensive: the process vanished mid-scan
+            continue
 
 
 def running_installation_ids(
@@ -118,7 +139,3 @@ def describe_running(installations: Iterable[Any]) -> list[dict[str, Any]]:
         {"id": inst.id, "displayName": inst.display_name, "running": inst.id in running}
         for inst in installations
     ]
-
-
-def _safe(prefix: str, exc: Exception) -> None:  # pragma: no cover - defensive
-    get_logger().debug("%s failed: %s", prefix, exc)
