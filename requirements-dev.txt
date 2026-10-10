@@ -1,0 +1,3 @@
+# Development-only dependencies. The plugin backend itself is stdlib-only.
+pytest>=8.0
+pytest-asyncio>=0.24

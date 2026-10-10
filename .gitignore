@@ -1,0 +1,28 @@
+# Build output
+dist/
+*.js.map
+
+# Bundled runtime binary (fetched + checksum-verified by scripts/fetch-instawow.sh)
+bin/instawow
+third_party/instawow/
+
+# Release artifacts
+release/
+*.zip
+
+# Node
+node_modules/
+.pnpm-store/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# OS / editor
+.DS_Store
+*.swp
+.vscode/

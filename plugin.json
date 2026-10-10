@@ -1,0 +1,11 @@
+{
+  "name": "Azeroth Addons",
+  "author": "deloughry",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": ["wow", "world-of-warcraft", "addons", "utility"],
+    "description": "Controller-first World of Warcraft addon manager for SteamOS Gaming Mode. Manages every local WoW installation with a bundled, zero-setup addon engine.",
+    "image": "https://raw.githubusercontent.com/OWNER/azeroth-addons/main/assets/logo.png"
+  }
+}
