@@ -26,3 +26,6 @@ __pycache__/
 .DS_Store
 *.swp
 .vscode/
+
+# Checksum stamp written by scripts/fetch-instawow.sh
+bin/.instawow-*.sha256
