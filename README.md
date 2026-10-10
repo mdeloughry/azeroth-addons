@@ -34,26 +34,41 @@ the UI only ever sees a provider-neutral addon model.
 
 ## Install
 
+Every release publishes one asset with a **stable name**, so the download link
+never changes between versions:
+
+```text
+https://github.com/mdeloughry/azeroth-addons/releases/latest/download/azeroth-addons.zip
+```
+
 ### Option A - manual (works today)
 
-1. Download `azeroth-addons-<version>.zip` from the releases page.
+1. Download `azeroth-addons.zip` from the link above (or the releases page).
 2. Copy it to the handheld.
 3. Unzip it into `/home/deck/homebrew/plugins/` so you get
    `/home/deck/homebrew/plugins/azeroth-addons/`.
 4. Restart Decky Loader (or reboot).
 
+### Upgrading / reinstalling
+
+1. Re-download the same link; it always serves the newest release.
+2. Unzip it over the existing folder - there is no need to remove it first.
+3. Your **settings, credentials and error journal are kept**: they live in
+   Decky's per-plugin settings directory, not inside the plugin folder.
+
 ### Option B - Decky plugin store
 
 Store submission is a later, separate step: it requires a public repository and
-passes through Decky's review. Two things must be handled first:
+passes through Decky's review. One item is still open:
 
-1. **Artwork** - render `assets/logo.svg` to a PNG, host it, and replace the
-   `OWNER` placeholder URL in `plugin.json`'s `publish.image`.
-2. **The engine binary** - `bin/instawow` is deliberately not committed (it is
+1. **The engine binary** - `bin/instawow` is deliberately not committed (it is
    a 25 MB third-party download). The store build therefore needs either the
    `package.json` `remote_binary` mechanism (name, URL and the pinned SHA-256
    from `scripts/fetch-instawow.sh`) so Decky fetches and verifies it at install
    time, or a CI step that runs `scripts/fetch-instawow.sh` before packaging.
+
+*Artwork: done. `assets/logo.png` (512×512) is rendered from `assets/logo.svg`
+and referenced by `plugin.json`'s `publish.image`.*
 
 ---
 
