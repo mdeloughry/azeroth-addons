@@ -35,15 +35,16 @@ class WowInterfaceProvider(AddonProvider):
             provider_id=self.provider_id,
             display_name=self.display_name,
             available=False,
-            state="unavailable",
+            # Not "unavailable": installs work through the bundled engine.
+            state="engine-backed",
             requires_credential=False,
             credential_configured=False,
             credential_mode="disabled",
             capabilities=self.capabilities(),
-            message="Handled by the bundled engine.",
+            message="Installs via the bundled engine.",
             detail=(
-                "WoWInterface does not publish a catalogue API for addon managers. "
-                "Retail addons install through the bundled engine using wowi: identifiers."
+                "WoWInterface publishes no catalogue API, so browsing is handled by the "
+                "bundled engine using wowi: identifiers (Retail only)."
             ),
         )
 

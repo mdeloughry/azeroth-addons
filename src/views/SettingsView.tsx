@@ -22,19 +22,18 @@ const CREDENTIALS: { key: string; label: string; description: string }[] = [
   {
     key: "curseforge",
     label: "CurseForge API key",
-    description:
-      "Optional. CurseForge downloads require an API key. Without one, other sources (GitHub, TukUI, WoWInterface) still work.",
+    description: "Optional. CurseForge needs a key for downloads.",
   },
   {
     key: "github",
     label: "GitHub token",
-    description: "Optional. Raises the GitHub rate limit from 60 to 5000 requests per hour.",
+    description: "Optional. Raises the rate limit from 60 to 5000 per hour.",
   },
-  { key: "wago", label: "Wago token", description: "Optional. Required by Wago for wago: addons." },
+  { key: "wago", label: "Wago token", description: "Optional. Required for Wago addons." },
   {
     key: "wowinterface",
     label: "WoWInterface token",
-    description: "Optional. Only used for CMaNGOS-era retail installs.",
+    description: "Optional. Only used for older retail installs.",
   },
 ];
 
@@ -128,25 +127,28 @@ export const SettingsView: FC = () => {
         ) : null}
         {plugin.providers.map((provider) => (
           <PanelSectionRow key={provider.id}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%" }}>
-              <span style={{ fontWeight: 500 }}>{provider.displayName}</span>
-              <ProviderStateBadge state={provider.state} />
-              <span style={{ marginLeft: "auto", ...META }}>
-                {provider.credentialConfigured ? provider.credentialMode : provider.requiresCredential ? "no key" : ""}
-              </span>
+            {/* One line per source. The long explanation lives in the tooltip. */}
+            <div style={{ width: "100%" }} title={provider.detail ?? undefined}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontWeight: 500 }}>{provider.displayName}</span>
+                <ProviderStateBadge state={provider.state} />
+                <span style={{ marginLeft: "auto", ...META }}>
+                  {provider.credentialConfigured
+                    ? provider.credentialMode
+                    : provider.requiresCredential
+                      ? "no key"
+                      : ""}
+                </span>
+              </div>
+              {provider.message ? <div style={META}>{provider.message}</div> : null}
             </div>
-            {provider.message ? <div style={META}>{provider.message}</div> : null}
-            {provider.detail ? <div style={META}>{provider.detail}</div> : null}
           </PanelSectionRow>
         ))}
       </PanelSection>
 
       <PanelSection title="Credentials">
         <PanelSectionRow>
-          <div style={META}>
-            Stored on this device only and injected into the engine at run time. They are never shown again and never
-            leave the backend.
-          </div>
+          <div style={META}>Stored on this device only. Never shown again, never sent to the UI.</div>
         </PanelSectionRow>
         {CREDENTIALS.map((entry) => {
           const state = plugin.settings?.credentials?.[entry.key];

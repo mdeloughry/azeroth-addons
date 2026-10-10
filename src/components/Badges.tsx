@@ -77,11 +77,21 @@ export const EngineStateBadge: FC<{ state: string; label?: string }> = ({ state,
 
 const PROVIDER_TONES: Record<string, keyof typeof TONES> = {
   available: "ok",
+  "engine-backed": "info",
   degraded: "warn",
   "not-configured": "muted",
   unavailable: "muted",
 };
 
+/** Short, scannable labels - the raw states read badly on a 10px badge. */
+const PROVIDER_LABELS: Record<string, string> = {
+  available: "Ready",
+  "engine-backed": "Via engine",
+  degraded: "Problem",
+  "not-configured": "Not set up",
+  unavailable: "Unavailable",
+};
+
 export const ProviderStateBadge: FC<{ state: string }> = ({ state }) => (
-  <Badge tone={PROVIDER_TONES[state] ?? "muted"}>{state.replace("-", " ")}</Badge>
+  <Badge tone={PROVIDER_TONES[state] ?? "muted"}>{PROVIDER_LABELS[state] ?? state.replace("-", " ")}</Badge>
 );

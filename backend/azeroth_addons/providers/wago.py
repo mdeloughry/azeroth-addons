@@ -41,16 +41,16 @@ class WagoProvider(AddonProvider):
             provider_id=self.provider_id,
             display_name=self.display_name,
             available=False,
-            state="unavailable",
+            # Not "unavailable": installs work through the bundled engine.
+            state="engine-backed",
             requires_credential=True,
             credential_configured=False,
             credential_mode="disabled",
             capabilities=self.capabilities(),
-            message="Handled by the bundled engine.",
+            message="Installs via the bundled engine.",
             detail=(
-                "Wago addons install through the bundled addon engine using wago: identifiers. "
-                "Direct API integration will be enabled if Wago publishes a supported third-party "
-                "integration method; Azeroth Addons does not scrape the website."
+                "Wago has no supported third-party search API, so browsing is handled by the "
+                "bundled engine using wago: identifiers."
             ),
         )
 

@@ -416,8 +416,11 @@ async def test_curseforge_health_reports_rejected_credential(monkeypatch):
 async def test_placeholder_providers_are_honest(provider_cls):
     provider = provider_cls()
     status = await provider.health()
-    assert status.available is False
-    assert status.state == "unavailable"
-    assert status.detail  # explains why
+    # Deliberately *not* "unavailable": installs from these sources work through
+    # the bundled engine, so a failure state would mislead the user.
+    assert status.state == "engine-backed"
+    assert status.available is False  # cannot serve search or metadata directly
+    assert status.message
+    assert status.detail  # explains why, without a wall of prose
     capabilities = provider.capabilities()
     assert not any([capabilities.search, capabilities.metadata, capabilities.versions, capabilities.downloads])
