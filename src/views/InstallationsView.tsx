@@ -1,5 +1,14 @@
 import { FileSelectionType, openFilePicker } from "@decky/api";
-import { ButtonItem, ConfirmModal, Dropdown, Field, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
+import {
+  ButtonItem,
+  ConfirmModal,
+  DialogButton,
+  Dropdown,
+  PanelSection,
+  PanelSectionRow,
+  TextField,
+  showModal,
+} from "@decky/ui";
 import { FC, useEffect, useMemo, useState } from "react";
 
 import { api, errorMessage } from "../api";
@@ -10,16 +19,6 @@ import { InstallationOption } from "../types";
 /** FileSelectionType.FOLDER. It is declared as an ambient const enum, which
  * `isolatedModules` forbids reading as a value, so the member is cast instead. */
 const PICK_FOLDER = 1 as FileSelectionType;
-
-const INPUT: React.CSSProperties = {
-  width: "100%",
-  padding: "6px 8px",
-  borderRadius: "3px",
-  border: "1px solid rgba(255,255,255,0.2)",
-  background: "rgba(0,0,0,0.3)",
-  color: "inherit",
-  fontSize: "13px",
-};
 
 const ROW: React.CSSProperties = {
   display: "flex",
@@ -148,20 +147,18 @@ export const InstallationsView: FC = () => {
               </div>
             </div>
             <AvailabilityBadge available={installation.available} />
-            <ButtonItem
-              layout="inline"
+            <DialogButton
               onClick={() => {
                 setRenamingId(installation.id);
                 setRenameValue(installation.displayName);
               }}
             >
               Rename
-            </ButtonItem>
-            <ButtonItem layout="inline" disabled={busy} onClick={() => void plugin.selectInstallation(installation.id)}>
+            </DialogButton>
+            <DialogButton disabled={busy} onClick={() => void plugin.selectInstallation(installation.id)}>
               Select
-            </ButtonItem>
-            <ButtonItem
-              layout="inline"
+            </DialogButton>
+            <DialogButton
               disabled={busy}
               onClick={() =>
                 showModal(
@@ -176,7 +173,7 @@ export const InstallationsView: FC = () => {
               }
             >
               Remove
-            </ButtonItem>
+            </DialogButton>
           </div>
         ))}
       </PanelSection>
@@ -184,13 +181,12 @@ export const InstallationsView: FC = () => {
       {renamingId ? (
         <PanelSection title="Rename installation">
           <PanelSectionRow>
-            <Field label="Display name">
-              <input
-                style={INPUT}
-                value={renameValue}
-                onChange={(event) => setRenameValue(event.currentTarget.value)}
-              />
-            </Field>
+            <TextField
+              label="Display name"
+              disabled={busy}
+              value={renameValue}
+              onChange={(event) => setRenameValue(event.currentTarget.value)}
+            />
           </PanelSectionRow>
           <PanelSectionRow>
             <ButtonItem

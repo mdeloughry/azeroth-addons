@@ -1,20 +1,10 @@
-import { ButtonItem, Field, PanelSection, PanelSectionRow, ToggleField } from "@decky/ui";
-import { FC, useEffect, useState } from "react";
+import { ButtonItem, PanelSection, PanelSectionRow, TextField, ToggleField } from "@decky/ui";
+import { FC, Fragment, useEffect, useState } from "react";
 
 import { api, errorMessage } from "../api";
 import { EngineStateBadge, ProviderStateBadge } from "../components/Badges";
 import { usePlugin } from "../state";
 import { ProfileStatus } from "../types";
-
-const INPUT: React.CSSProperties = {
-  width: "100%",
-  padding: "6px 8px",
-  borderRadius: "3px",
-  border: "1px solid rgba(255,255,255,0.2)",
-  background: "rgba(0,0,0,0.3)",
-  color: "inherit",
-  fontSize: "13px",
-};
 
 const META: React.CSSProperties = { fontSize: "11px", opacity: 0.65, wordBreak: "break-all" };
 
@@ -152,39 +142,48 @@ export const SettingsView: FC = () => {
         </PanelSectionRow>
         {CREDENTIALS.map((entry) => {
           const state = plugin.settings?.credentials?.[entry.key];
+          const draft = drafts[entry.key] ?? "";
           return (
-            <PanelSectionRow key={entry.key}>
-              <Field label={entry.label} description={entry.description}>
-                <input
-                  style={INPUT}
-                  type="password"
-                  placeholder={state?.configured ? `Saved (${state.hint}) — type to replace` : "Not set"}
-                  value={drafts[entry.key] ?? ""}
+            <Fragment key={entry.key}>
+              <PanelSectionRow>
+                <TextField
+                  label={entry.label}
+                  description={
+                    state?.configured ? `${entry.description} Saved.` : `${entry.description} Not set.`
+                  }
+                  bIsPassword
+                  bShowClearAction
+                  disabled={busy}
+                  value={draft}
                   onChange={(event) =>
                     setDrafts((previous) => ({ ...previous, [entry.key]: event.currentTarget.value }))
                   }
                 />
-              </Field>
-              <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+              </PanelSectionRow>
+              <PanelSectionRow>
                 <ButtonItem
-                  layout="inline"
-                  disabled={busy || !(drafts[entry.key] ?? "").trim()}
+                  layout="below"
+                  disabled={busy || draft.trim().length === 0}
                   onClick={() => {
-                    void plugin.setCredential(entry.key, (drafts[entry.key] ?? "").trim());
+                    void plugin.setCredential(entry.key, draft.trim());
                     setDrafts((previous) => ({ ...previous, [entry.key]: "" }));
                   }}
                 >
-                  Save
+                  Save {entry.label}
                 </ButtonItem>
-                <ButtonItem
-                  layout="inline"
-                  disabled={busy || !state?.configured}
-                  onClick={() => void plugin.clearCredential(entry.key)}
-                >
-                  Clear
-                </ButtonItem>
-              </div>
-            </PanelSectionRow>
+              </PanelSectionRow>
+              {state?.configured ? (
+                <PanelSectionRow>
+                  <ButtonItem
+                    layout="below"
+                    disabled={busy}
+                    onClick={() => void plugin.clearCredential(entry.key)}
+                  >
+                    Clear {entry.label}
+                  </ButtonItem>
+                </PanelSectionRow>
+              ) : null}
+            </Fragment>
           );
         })}
       </PanelSection>

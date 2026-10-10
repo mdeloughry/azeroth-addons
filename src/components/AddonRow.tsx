@@ -1,6 +1,6 @@
 import {
-  ButtonItem,
   ConfirmModal,
+  DialogButton,
   Focusable,
   Navigation,
   PanelSection,
@@ -76,36 +76,32 @@ export const AddonRow: FC<{
       <StateBadge state={addon.state} />
 
       {addon.homepage ? (
-        <ButtonItem layout="inline" onClick={() => Navigation.NavigateToExternalWeb(addon.homepage as string)}>
-          Page
-        </ButtonItem>
+        <DialogButton onClick={() => Navigation.NavigateToExternalWeb(addon.homepage as string)}>Page</DialogButton>
       ) : null}
 
       {actions?.showInstall ? (
-        <ButtonItem
-          layout="inline"
+        <DialogButton
           disabled={blocked || Boolean(actions.installed)}
           onClick={() => void plugin.installAddon(addon.provider, addon.providerId)}
         >
           {actions.installed ? "Installed" : "Install"}
-        </ButtonItem>
+        </DialogButton>
       ) : null}
 
       {actions?.showUpdate ? (
-        <ButtonItem layout="inline" disabled={blocked} onClick={() => void plugin.updateAddon(addon.id)}>
+        <DialogButton disabled={blocked} onClick={() => void plugin.updateAddon(addon.id)}>
           Update
-        </ButtonItem>
+        </DialogButton>
       ) : null}
 
       {actions?.showRollback ? (
-        <ButtonItem layout="inline" disabled={blocked} onClick={() => void plugin.rollbackAddon(addon.id)}>
+        <DialogButton disabled={blocked} onClick={() => void plugin.rollbackAddon(addon.id)}>
           Rollback
-        </ButtonItem>
+        </DialogButton>
       ) : null}
 
       {actions?.showRemove ? (
-        <ButtonItem
-          layout="inline"
+        <DialogButton
           disabled={blocked}
           onClick={() =>
             showModal(
@@ -120,7 +116,7 @@ export const AddonRow: FC<{
           }
         >
           Remove
-        </ButtonItem>
+        </DialogButton>
       ) : null}
     </div>
   );

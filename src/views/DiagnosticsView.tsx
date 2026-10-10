@@ -1,20 +1,18 @@
-import { ButtonItem, Dropdown, Field, PanelSection, PanelSectionRow, Spinner, ToggleField } from "@decky/ui";
+import {
+  ButtonItem,
+  Dropdown,
+  PanelSection,
+  PanelSectionRow,
+  Spinner,
+  TextField,
+  ToggleField,
+} from "@decky/ui";
 import { FC, useCallback, useEffect, useState } from "react";
 
 import { api, errorMessage } from "../api";
 import { Badge } from "../components/Badges";
 import { usePlugin } from "../state";
 import { JournalEvent, JournalPayload, ReportingPayload } from "../types";
-
-const INPUT: React.CSSProperties = {
-  width: "100%",
-  padding: "6px 8px",
-  borderRadius: "3px",
-  border: "1px solid rgba(255,255,255,0.2)",
-  background: "rgba(0,0,0,0.3)",
-  color: "inherit",
-  fontSize: "13px",
-};
 
 const META: React.CSSProperties = { fontSize: "11px", opacity: 0.68 };
 const MONO: React.CSSProperties = {
@@ -194,15 +192,15 @@ export const DiagnosticsView: FC = () => {
               </div>
               <div style={{ fontSize: "12px", opacity: 0.85, marginTop: "2px" }}>{event.message}</div>
               {expanded === event.id ? <EventDetails event={event} /> : null}
-              <div style={{ marginTop: "4px" }}>
-                <ButtonItem
-                  layout="inline"
-                  onClick={() => setExpanded(expanded === event.id ? null : event.id)}
-                >
-                  {expanded === event.id ? "Hide details" : "Details"}
-                </ButtonItem>
-              </div>
             </div>
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <ButtonItem
+              layout="below"
+              onClick={() => setExpanded(expanded === event.id ? null : event.id)}
+            >
+              {expanded === event.id ? "Hide details" : "Details"}
+            </ButtonItem>
           </PanelSectionRow>
         </PanelSection>
       ))}
@@ -236,33 +234,29 @@ export const DiagnosticsView: FC = () => {
 
         {sendSentry ? (
           <PanelSectionRow>
-            <Field
+            <TextField
               label="Sentry DSN"
-              description="From your GlitchTip or Sentry project settings. Stored on device, never shown again."
-            >
-              <input
-                style={INPUT}
-                type="password"
-                placeholder={
-                  status?.destination
-                    ? `Saved (${status.destination}) — paste to replace`
-                    : "https://key@your-host/project"
-                }
-                value={dsnDraft}
-                onChange={(event) => setDsnDraft(event.currentTarget.value)}
-              />
-            </Field>
+              description={
+                status?.destination
+                  ? `Saved: ${status.destination}`
+                  : "From your GlitchTip or Sentry project settings."
+              }
+              bIsPassword
+              bShowClearAction
+              disabled={busy}
+              value={dsnDraft}
+              onChange={(event) => setDsnDraft(event.currentTarget.value)}
+            />
           </PanelSectionRow>
         ) : (
           <PanelSectionRow>
-            <Field label="Webhook URL" description="Must be https. The event JSON is POSTed here.">
-              <input
-                style={INPUT}
-                placeholder="https://collector.example.com/ingest"
-                value={endpointDraft}
-                onChange={(event) => setEndpointDraft(event.currentTarget.value)}
-              />
-            </Field>
+            <TextField
+              label="Webhook URL"
+              description="Must be https. The event JSON is POSTed here."
+              disabled={busy}
+              value={endpointDraft}
+              onChange={(event) => setEndpointDraft(event.currentTarget.value)}
+            />
           </PanelSectionRow>
         )}
 
@@ -324,11 +318,9 @@ export const DiagnosticsView: FC = () => {
                 <div style={META}>{reporting.preview.request.url}</div>
               </PanelSectionRow>
               <PanelSectionRow>
-                <textarea
-                  readOnly
-                  style={{ ...MONO, width: "100%", height: "220px" }}
-                  value={JSON.stringify(reporting.preview.request.body, null, 2)}
-                />
+                <div style={{ ...MONO, maxHeight: "260px" }}>
+                  {JSON.stringify(reporting.preview.request.body, null, 2)}
+                </div>
               </PanelSectionRow>
               <PanelSectionRow>
                 <div style={META}>Credentials are masked here; the real request carries them.</div>

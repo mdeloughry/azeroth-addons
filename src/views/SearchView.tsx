@@ -1,20 +1,10 @@
-import { ButtonItem, Field, PanelSection, PanelSectionRow, Spinner } from "@decky/ui";
+import { ButtonItem, PanelSection, PanelSectionRow, Spinner, TextField } from "@decky/ui";
 import { FC, useMemo, useState } from "react";
 
 import { AddonRow } from "../components/AddonRow";
 import { ProviderBadge, ProviderStateBadge } from "../components/Badges";
 import { usePlugin } from "../state";
 import { Addon } from "../types";
-
-const INPUT: React.CSSProperties = {
-  width: "100%",
-  padding: "6px 8px",
-  borderRadius: "3px",
-  border: "1px solid rgba(255,255,255,0.2)",
-  background: "rgba(0,0,0,0.3)",
-  color: "inherit",
-  fontSize: "13px",
-};
 
 const GROUP: React.CSSProperties = {
   marginTop: "6px",
@@ -48,17 +38,13 @@ export const SearchView: FC = () => {
     <>
       <PanelSection title="Find addons">
         <PanelSectionRow>
-          <Field label="Search every compatible source" description="CurseForge, GitHub, Wago, TukUI and more, depending on what is configured.">
-            <input
-              style={INPUT}
-              value={query}
-              placeholder="e.g. details, weakauras, consoleport"
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") submit();
-              }}
-            />
-          </Field>
+          <TextField
+            label="Search every compatible source"
+            description="CurseForge, GitHub, Wago, TukUI and more, depending on what is configured."
+            disabled={plugin.busy !== null}
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
           <ButtonItem

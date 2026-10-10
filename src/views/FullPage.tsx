@@ -1,4 +1,4 @@
-import { ButtonItem, Focusable, Navigation, PanelSection, PanelSectionRow, Spinner } from "@decky/ui";
+import { DialogButton, Focusable, Navigation, PanelSection, PanelSectionRow, Spinner } from "@decky/ui";
 import { FC, useEffect, useState } from "react";
 
 import { Badge } from "../components/Badges";
@@ -72,18 +72,17 @@ export const FullPage: FC<{ initialTab?: Tab }> = ({ initialTab = "addons" }) =>
         ) : null}
         {updateCount > 0 ? <Badge tone="warn">{updateCount} updates</Badge> : null}
         <div style={{ marginLeft: "auto" }}>
-          <ButtonItem
-            layout="inline"
+          <DialogButton
             onClick={() => {
               Navigation.NavigateBack();
             }}
           >
             Back
-          </ButtonItem>
+          </DialogButton>
         </div>
       </Focusable>
 
-      <Focusable style={NAV}>
+      <Focusable style={NAV} flow-children="row">
         {TABS.map((entry) => (
           <Focusable
             key={entry.id}
