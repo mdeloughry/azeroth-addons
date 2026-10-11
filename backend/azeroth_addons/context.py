@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Mapping
@@ -93,6 +94,10 @@ class PluginEnvironment:
         )
 
 
+# The opt-in prompt fires after an error, at most this often, until answered.
+NUDGE_THROTTLE_SECONDS = 60
+
+
 class AzerothAddonsContext:
     def __init__(self, env: PluginEnvironment, emit: Emitter | None = None) -> None:
         self.env = env
@@ -112,6 +117,7 @@ class AzerothAddonsContext:
         self._prepare_task: asyncio.Task | None = None
         self._report_tasks: set[asyncio.Task] = set()
         self._last_engine_status: EngineStatus | None = None
+        self._last_nudge_at: float | None = None
 
     # --- lifecycle ---------------------------------------------------------
 
@@ -209,14 +215,27 @@ class AzerothAddonsContext:
         )
 
     def _on_error_event(self, payload: dict[str, Any]) -> None:
-        """Forward a journal entry to the reporter when reporting is enabled."""
-        if not self.reporter.enabled():
-            return
+        """Report a journal entry, or offer opt-in while reporting is still off."""
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:  # pragma: no cover - no loop outside the plugin runtime
             return
-        task = loop.create_task(self.reporter.maybe_send(payload))
+        if not self.reporter.enabled():
+            self._maybe_nudge(loop)
+            return
+        self._track(loop.create_task(self.reporter.maybe_send(payload)))
+
+    def _maybe_nudge(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Offer opt-in after an error, at most once per window, until answered."""
+        if self.settings.get("errorReportingNudgeDismissed", False):
+            return
+        now = time.monotonic()
+        if self._last_nudge_at is not None and now - self._last_nudge_at < NUDGE_THROTTLE_SECONDS:
+            return
+        self._last_nudge_at = now
+        self._track(loop.create_task(self.emit(events.ERROR, {"nudge": True})))
+
+    def _track(self, task: asyncio.Task) -> None:
         self._report_tasks.add(task)
         task.add_done_callback(self._report_tasks.discard)
 
@@ -358,6 +377,10 @@ class AzerothAddonsContext:
         }
 
     def update_settings(self, values: dict[str, Any]) -> dict[str, Any]:
+        # Opting in answers the prompt: never nudge again, even if reporting is
+        # later turned back off.
+        if values.get("enableErrorReporting"):
+            values = {**values, "errorReportingNudgeDismissed": True}
         self.settings.update(values)
         return self.settings_payload()
 

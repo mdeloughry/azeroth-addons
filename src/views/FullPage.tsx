@@ -2,6 +2,7 @@ import { DialogButton, Focusable, Navigation, PanelSection, PanelSectionRow, Spi
 import { FC, useEffect, useState } from "react";
 
 import { Badge } from "../components/Badges";
+import { ReportingNudge } from "../components/ReportingNudge";
 import { setReportingView } from "../reporting";
 import { usePlugin } from "../state";
 import { AddonsView } from "./AddonsView";
@@ -102,6 +103,8 @@ export const FullPage: FC<{ initialTab?: Tab }> = ({ initialTab = "addons" }) =>
           </PanelSectionRow>
         </PanelSection>
       ) : null}
+
+      <ReportingNudge />
 
       {plugin.booting && plugin.installations.length === 0 ? (
         <PanelSection>

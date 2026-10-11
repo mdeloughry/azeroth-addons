@@ -4,6 +4,7 @@ import { FC } from "react";
 import { AddonList } from "../components/AddonRow";
 import { AvailabilityBadge, EngineStateBadge } from "../components/Badges";
 import { OperationStatus } from "../components/OperationStatus";
+import { ReportingNudge } from "../components/ReportingNudge";
 import { ROUTE } from "../routes";
 import { usePlugin } from "../state";
 
@@ -79,6 +80,8 @@ export const MainPanel: FC = () => {
           </PanelSectionRow>
         )}
       </PanelSection>
+
+      <ReportingNudge />
 
       <OperationStatus />
 

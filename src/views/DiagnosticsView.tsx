@@ -61,8 +61,9 @@ const EventDetails: FC<{ event: JournalEvent }> = ({ event }) => (
 /**
  * Diagnostics: what went wrong on this device, and strictly opt-in reporting.
  *
- * Nothing is transmitted until reporting is switched on and a destination is
- * configured, and the exact request body is shown before that happens.
+ * Nothing is transmitted until reporting is switched on. A destination is built
+ * in, so opting in needs no configuration; the exact request body is shown
+ * before that happens, and a user can point it at their own destination.
  */
 export const DiagnosticsView: FC = () => {
   const plugin = usePlugin();
@@ -112,7 +113,8 @@ export const DiagnosticsView: FC = () => {
     setNotice(null);
     try {
       if (sendSentry) {
-        await api.setCredential("sentry", dsnDraft.trim());
+        // An empty box clears a custom DSN and falls back to the built-in one.
+        await api.setCredential("sentry", dsnDraft.trim() || null);
         setDsnDraft("");
       } else {
         await plugin.saveSettings({ errorReportingEndpoint: endpointDraft.trim() });
@@ -208,13 +210,14 @@ export const DiagnosticsView: FC = () => {
       <PanelSection title="Send error reports">
         <PanelSectionRow>
           <div style={META}>
-            Off by default. Nothing leaves this device unless you turn it on and point it at your own destination.
+            Off by default. When on, redacted errors go to the plugin developer's destination unless you set your own
+            below.
           </div>
         </PanelSectionRow>
         <PanelSectionRow>
           <ToggleField
             label="Send error reports"
-            description="Sends redacted errors to the destination below."
+            description="Sends redacted errors to the destination below, or the built-in one."
             checked={Boolean(status?.enabled)}
             disabled={busy || !status}
             onChange={(value: boolean) => void applySettings({ enableErrorReporting: value })}
@@ -237,9 +240,11 @@ export const DiagnosticsView: FC = () => {
             <TextField
               label="Sentry DSN"
               description={
-                status?.destination
-                  ? `Saved: ${status.destination}`
-                  : "From your GlitchTip or Sentry project settings."
+                status?.usingBuiltinDestination
+                  ? `Using the built-in destination (${status.destination}). Paste a DSN to override.`
+                  : status?.destination
+                    ? `Saved: ${status.destination}`
+                    : "From your GlitchTip or Sentry project settings."
               }
               bIsPassword
               bShowClearAction
@@ -263,7 +268,7 @@ export const DiagnosticsView: FC = () => {
         <PanelSectionRow>
           <ButtonItem
             layout="below"
-            disabled={busy || (sendSentry ? dsnDraft.trim().length === 0 : endpointDraft.trim().length === 0)}
+            disabled={busy || (!sendSentry && endpointDraft.trim().length === 0)}
             onClick={() => void saveDestination()}
           >
             Save destination
@@ -288,7 +293,9 @@ export const DiagnosticsView: FC = () => {
         {status ? (
           <PanelSectionRow>
             <div style={META}>
-              {status.usable ? "Ready" : "Not ready"} · sent {status.sent} · failed {status.failed}
+              {status.usable ? "Ready" : "Not ready"}
+              {status.usingBuiltinDestination ? " · built-in destination" : ""}
+              {` · sent ${status.sent} · failed ${status.failed}`}
               {status.lastSentAt ? ` · last ${formatWhen(status.lastSentAt)}` : ""}
             </div>
           </PanelSectionRow>

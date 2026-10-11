@@ -54,6 +54,7 @@ export interface PluginState {
   checkingUpdates: boolean;
   searching: boolean;
   lastUpdatedAt: number | null;
+  reportingNudge: boolean;
 
   boot: (options?: { silent?: boolean }) => Promise<void>;
   refreshRuntime: () => Promise<void>;
@@ -75,6 +76,7 @@ export interface PluginState {
   setCredential: (provider: string, value: string) => Promise<void>;
   clearCredential: (provider: string) => Promise<void>;
   reloadProviders: () => Promise<void>;
+  answerReportingNudge: (enable: boolean) => Promise<void>;
 }
 
 const PluginContext = createContext<PluginState | null>(null);
@@ -106,6 +108,7 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [searching, setSearching] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  const [reportingNudge, setReportingNudge] = useState(false);
 
   const selectedRef = useRef<string | null>(null);
   selectedRef.current = selectedId;
@@ -178,6 +181,17 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
     [fail],
   );
 
+  const refreshReportingNudge = useCallback(async () => {
+    try {
+      const [payload, journal] = await Promise.all([api.getSettings(), api.getErrorJournal(1)]);
+      const values = (payload.values ?? {}) as Record<string, unknown>;
+      const answered = Boolean(values.enableErrorReporting) || Boolean(values.errorReportingNudgeDismissed);
+      setReportingNudge(!answered && journal.summary.total > 0);
+    } catch {
+      /* the prompt is optional; never let it break the boot */
+    }
+  }, []);
+
   const boot = useCallback(
     async (options?: { silent?: boolean }) => {
       if (!options?.silent) setBooting(true);
@@ -191,6 +205,7 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
         } catch {
           /* settings are non-critical for the main view */
         }
+        void refreshReportingNudge();
         if (nextSelected) {
           selectedRef.current = nextSelected;
           await loadInstalled();
@@ -201,7 +216,7 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
         setBooting(false);
       }
     },
-    [fail, loadInstallations, loadInstalled, refreshRuntime, reloadEngines, reloadProviders],
+    [fail, loadInstallations, loadInstalled, refreshReportingNudge, refreshRuntime, reloadEngines, reloadProviders],
   );
 
   // --- boot + events ------------------------------------------------------
@@ -236,6 +251,9 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
         if (!payload || !payload.installationId) return;
         if (payload.installationId !== selectedRef.current) return;
         void loadInstalled({ refresh: true });
+      }),
+      onEvent<[{ nudge?: boolean }]>(EVENTS.error, (payload) => {
+        if (payload?.nudge) setReportingNudge(true);
       }),
     ];
     return () => {
@@ -465,6 +483,14 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
     [reloadProviders, run],
   );
 
+  const answerReportingNudge = useCallback(
+    async (enable: boolean) => {
+      setReportingNudge(false);
+      await saveSettings(enable ? { enableErrorReporting: true } : { errorReportingNudgeDismissed: true });
+    },
+    [saveSettings],
+  );
+
   const selected = useMemo(
     () => installations.find((installation) => installation.id === selectedId) ?? null,
     [installations, selectedId],
@@ -510,6 +536,8 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
     setCredential,
     clearCredential,
     reloadProviders,
+    reportingNudge,
+    answerReportingNudge,
   };
 
   return <PluginContext.Provider value={value}>{children}</PluginContext.Provider>;

@@ -2,7 +2,8 @@
 
 The privacy guarantees are the point of this module: redaction, the
 everything-off-by-default posture, and the fact that nothing is transmitted
-until a destination is configured.
+until the user opts in (a destination is built in, so there is nothing to
+configure).
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from azeroth_addons.settings import JsonStore, SettingsStore
 from azeroth_addons.telemetry import privacy
 from azeroth_addons.telemetry.journal import ErrorEvent, ErrorJournal
 from azeroth_addons.telemetry.reporter import (
+    DEFAULT_SENTRY_DSN,
     FORMAT_CUSTOM,
     FORMAT_SENTRY,
     ErrorReporter,
@@ -313,6 +315,44 @@ def test_reporting_is_off_by_default(reporter_env):
     assert reporter.enabled() is False
     assert reporter.usable() is False
     assert reporter.status()["sent"] == 0
+    # A built-in destination is present but unused until the user opts in.
+    assert reporter.status()["usingBuiltinDestination"] is True
+
+
+def test_builtin_destination_is_used_without_a_credential(reporter_env):
+    reporter, settings = reporter_env
+    settings.update({"enableErrorReporting": True, "errorReportingFormat": FORMAT_SENTRY})
+    assert reporter.dsn() == DEFAULT_SENTRY_DSN
+    assert reporter.using_builtin_destination() is True
+    assert reporter.configuration_problem() is None
+    assert reporter.usable() is True
+    assert reporter.destination_display() == "https://errors.loki.m4p.uk/1"
+
+
+def test_a_user_credential_overrides_the_builtin_destination(reporter_env):
+    reporter, settings = reporter_env
+    settings.set_credential("sentry", DSN)
+    assert reporter.dsn() == DSN
+    assert reporter.using_builtin_destination() is False
+    assert reporter.destination_display() == "https://glitchtip.example.com/42"
+
+
+def test_the_builtin_destination_key_is_never_displayed(reporter_env):
+    reporter, _settings = reporter_env
+    assert reporter.using_builtin_destination() is True
+    assert "01541d68" not in json.dumps(reporter.status())
+    assert "01541d68" not in json.dumps(reporter.preview())
+
+
+async def test_builtin_destination_receives_reports(reporter_env, monkeypatch):
+    reporter, settings = reporter_env
+    settings.update({"enableErrorReporting": True, "errorReportingFormat": FORMAT_SENTRY})
+    calls: list[str] = []
+    monkeypatch.setattr(reporter, "_post_sync", lambda url, headers, body: (calls.append(url), 200)[1])
+
+    result = await reporter.maybe_send(ErrorEvent.build(code="A", message="b").to_dict())
+    assert result == {"sent": True, "status": 200}
+    assert calls == ["https://errors.loki.m4p.uk/api/1/store/"]
 
 
 async def test_disabled_reporter_sends_nothing(reporter_env, monkeypatch):
@@ -446,8 +486,10 @@ def test_preview_masks_the_dsn_key(reporter_env):
     assert preview["problem"] is None
 
 
-def test_preview_reports_configuration_problems(reporter_env):
-    reporter, _settings = reporter_env
+def test_preview_reports_configuration_problems_for_a_custom_endpoint(reporter_env):
+    """An endpoint that is still missing is the remaining misconfiguration."""
+    reporter, settings = reporter_env
+    settings.update({"errorReportingFormat": FORMAT_CUSTOM})
     preview = reporter.preview()
     assert preview["request"] is None
     assert preview["problem"]

@@ -98,11 +98,15 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "curseForgeServiceUrl": None,
     "sourcePreference": "automatic",
     "autoCheckUpdates": True,
-    # Error reporting is off unless the user turns it on and sets a destination.
-    # The DSN itself lives in the credential store, never in plain settings.
+    # Error reporting is off unless the user turns it on. A built-in destination
+    # is used by default; a user-supplied DSN lives in the credential store,
+    # never in plain settings.
     "enableErrorReporting": False,
     "errorReportingFormat": "sentry",
     "errorReportingEndpoint": "",
+    # Set once the user answers the opt-in prompt (by enabling reporting or by
+    # dismissing it), so the nudge is offered at most once.
+    "errorReportingNudgeDismissed": False,
 }
 
 # Keys the frontend is allowed to write. Keeps an arbitrary RPC payload from
@@ -117,6 +121,7 @@ SETTABLE_KEYS = frozenset(
         "enableErrorReporting",
         "errorReportingFormat",
         "errorReportingEndpoint",
+        "errorReportingNudgeDismissed",
     }
 )
 

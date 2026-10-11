@@ -167,8 +167,9 @@ There is also a **direct CurseForge API** provider built in. It ships
 
 1. **Local journal - always on, never leaves the device.** Every error the
    backend or the UI produces is recorded on the device.
-2. **Remote reporting - off until you turn it on.** Point it at a destination
-   you control.
+2. **Remote reporting - off until you turn it on.** By default it sends to the
+   plugin developer's server; you can point it at a destination you control
+   instead.
 
 ### The local journal
 
@@ -188,12 +189,19 @@ Reports are sent using the **Sentry protocol** (the Store API), so they land in
 [GlitchTip](https://glitchtip.com), Bugsink or Sentry with no extra tooling -
 and **no SDK**, because the backend is stdlib-only.
 
+**A destination is built in, so there is nothing to configure.** Turn on
+**Send error reports** and redacted errors go to the plugin developer's
+GlitchTip project. You are prompted once, after an error, and can also switch it
+on in **Settings** or **Diagnostics**.
+
+To send to your **own** destination instead:
+
 1. Deploy **GlitchTip** (self-hosted, MIT, Sentry-compatible) using its official
-   Docker Compose install.
-2. Create a project in GlitchTip and copy its **DSN**.
+   Docker Compose install, or use Bugsink or Sentry.
+2. Create a project and copy its **DSN**.
 3. In Azeroth Addons, open **Diagnostics → Send error reports**.
-4. Paste the **DSN**, press **Save destination**, then **Send a test report**.
-5. Turn **Send error reports** on. Errors appear in GlitchTip from then on.
+4. Paste the **DSN** and press **Save destination**. Clear the box to go back to
+   the built-in destination.
 
 Prefer a webhook? Switch the destination type to **Plain JSON webhook** and the
 documented event JSON is POSTed to your URL instead.
@@ -203,8 +211,9 @@ documented event JSON is POSTed to your URL instead.
 **Sent:** plugin version, Python/platform, engine name and version, the error
 code and message, redacted details, stack frames, and the context tags.
 
-**Never sent:** API keys, tokens, the DSN, your username, your home directory,
-absolute plugin paths, addon names, or any device identifier.
+**Never sent:** API keys, tokens, your own DSN, your username, your home
+directory, absolute plugin paths, addon names, or any device identifier. (The
+built-in destination is where a report *goes*; it is not part of the payload.)
 
 Before enabling, press **Preview what would be sent** to see the exact request
 body. The destination must be HTTPS (plain HTTP only for loopback), sends are

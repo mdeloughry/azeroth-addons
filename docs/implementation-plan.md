@@ -281,18 +281,26 @@ Two layers, privacy-first.
    stays stdlib-only and reports still land in a proven tool (GlitchTip,
    Bugsink or Sentry). Off by default, with the exact request previewable,
    HTTPS required (loopback may use HTTP), rate limited, and failures surfaced
-   in the UI instead of retried in a loop.
+   in the UI instead of retried in a loop. A built-in destination means opting
+   in needs no configuration.
 
 Decisions taken:
 
 1. **A destination, not a vendor.** The SDK-based options are excluded twice
-   over: the backend cannot install packages, and a public plugin would make
-   the author a data controller for other people's telemetry. Implementing the
-   protocol once keeps the destination a leaf that can be swapped.
-2. **The DSN is a credential**, not a setting. It is stored with the other
-   credentials (mode 0600), never returned to the frontend, and the UI only
-   ever shows a keyless form (`https://host/project`).
-3. **Two redaction bugs were found by the new tests**: `Authorization: Bearer
+   over: the backend cannot install packages, and implementing the protocol once
+   keeps the destination a leaf that can be swapped. The default is the author's
+   own GlitchTip project, so opting in takes one switch; an advanced user can
+   override it with their own DSN or webhook.
+2. **Consent, not silence.** Sending errors to the author makes the author the
+   recipient of other people's telemetry, so reporting stays off by default and
+   is offered - once - after an error happens, with a toggle in Settings and
+   Diagnostics. The exact payload is previewable before opting in.
+3. **The DSN is a credential** when the user supplies one: stored with the other
+   credentials (mode 0600), never returned to the frontend, and shown only in a
+   keyless form (`https://host/project`). The built-in DSN ships in code as a
+   public client key (as Sentry intends), is used only when the user has set
+   none, and is likewise never returned to the UI. Rotating it needs a release.
+4. **Two redaction bugs were found by the new tests**: `Authorization: Bearer
    <token>` was redacting the scheme word and leaving the token, and a bare
    `token` key was not treated as sensitive. Both are fixed, with tests.
-4. **Engine-backed sources are no longer labelled "unavailable"** (see below).
+5. **Engine-backed sources are no longer labelled "unavailable"** (see below).

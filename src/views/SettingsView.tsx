@@ -188,6 +188,18 @@ export const SettingsView: FC = () => {
         })}
       </PanelSection>
 
+      <PanelSection title="Error reporting">
+        <PanelSectionRow>
+          <ToggleField
+            label="Send error reports"
+            description="Off by default. Sends redacted error reports to the plugin developer's server. See Diagnostics for exactly what is sent, or to use your own destination."
+            checked={Boolean(values.enableErrorReporting)}
+            disabled={busy}
+            onChange={(value: boolean) => void plugin.saveSettings({ enableErrorReporting: value })}
+          />
+        </PanelSectionRow>
+      </PanelSection>
+
       <PanelSection title="Advanced">
         <PanelSectionRow>
           <ToggleField

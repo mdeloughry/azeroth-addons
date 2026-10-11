@@ -10,6 +10,7 @@ engine build.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import importlib
 import json
@@ -354,7 +355,12 @@ async def test_reporting_is_off_by_default_and_sends_nothing(plugin, monkeypatch
     assert reporting["ok"] is True
     assert reporting["data"]["status"]["enabled"] is False
     assert reporting["data"]["status"]["usable"] is False
-    assert reporting["data"]["preview"]["problem"]  # explains what is missing
+    # A destination is built in, so being off is purely the opt-in: the preview
+    # is ready - and keyless - before the user turns anything on.
+    assert reporting["data"]["status"]["usingBuiltinDestination"] is True
+    assert reporting["data"]["preview"]["problem"] is None
+    assert reporting["data"]["preview"]["request"]["url"].endswith("/api/1/store/")
+    assert "01541d68-6611-432f-9dd5-db886a2e4579" not in json.dumps(reporting["data"])
 
     # A real failure still records locally, without any network traffic.
     await plugin.get_installed_addons("retail-nope")
@@ -376,6 +382,53 @@ async def test_reporting_status_exposes_no_dsn_key(plugin, tmp_path: Path):
     # The UI gets a keyless form of the destination, never the DSN itself.
     assert "verysecretkey" not in json.dumps(reporting["data"])
     assert reporting["data"]["status"]["destination"] == "https://glitchtip.example.com/7"
+
+
+async def test_builtin_destination_key_never_reaches_the_ui(plugin):
+    reporting = await plugin.get_error_reporting()
+    assert reporting["data"]["status"]["usingBuiltinDestination"] is True
+    assert "01541d68-6611-432f-9dd5-db886a2e4579" not in json.dumps(reporting["data"])
+
+
+async def test_an_error_offers_the_opt_in_once(plugin, emitter):
+    context = plugin._ctx()  # noqa: SLF001 - the boundary under test
+    context._emit_callback = emitter
+
+    await plugin.get_installed_addons("retail-nope")
+    await asyncio.sleep(0)
+    assert emitter.payloads("az:error") == [{"nudge": True}]
+
+    # A second error inside the window does not ask again.
+    await plugin.get_installed_addons("retail-nope")
+    await asyncio.sleep(0)
+    assert emitter.names().count("az:error") == 1
+
+
+async def test_no_opt_in_prompt_after_it_is_dismissed(plugin, emitter):
+    context = plugin._ctx()  # noqa: SLF001
+    context._emit_callback = emitter
+    await plugin.set_settings({"errorReportingNudgeDismissed": True})
+
+    await plugin.get_installed_addons("retail-nope")
+    await asyncio.sleep(0)
+    assert "az:error" not in emitter.names()
+
+
+async def test_no_opt_in_prompt_while_reporting_is_already_enabled(plugin, emitter, monkeypatch):
+    context = plugin._ctx()  # noqa: SLF001
+    context._emit_callback = emitter
+    monkeypatch.setattr(context.reporter, "_post_sync", lambda *_args, **_kwargs: 200)
+    # Simulate an upgrade: reporting was already on before the prompt existed.
+    context.settings.set("enableErrorReporting", True)
+
+    await plugin.get_installed_addons("retail-nope")
+    await asyncio.sleep(0)
+    assert "az:error" not in emitter.names()
+
+
+async def test_enabling_reporting_answers_the_prompt(plugin):
+    saved = await plugin.set_settings({"enableErrorReporting": True})
+    assert saved["data"]["values"]["errorReportingNudgeDismissed"] is True
 
 
 async def test_send_test_report_posts_to_the_store_api(plugin, monkeypatch):

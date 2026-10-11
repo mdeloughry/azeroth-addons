@@ -268,6 +268,7 @@ export interface ReportingStatus {
   format: string;
   formats: string[];
   destination: string;
+  usingBuiltinDestination: boolean;
   problem: string | null;
   schemaVersion: number;
   sent: number;

@@ -1,7 +1,8 @@
 """Opt-in error reporting.
 
-**Off by default. Nothing is ever sent until the user turns it on and supplies
-a destination.**
+**Off by default. Nothing is ever sent until the user turns it on.** A built-in
+destination is used unless the user supplies their own, so opting in needs no
+configuration; an advanced user can still point reports anywhere.
 
 Two destinations are supported:
 
@@ -57,6 +58,11 @@ FORMAT_CUSTOM = "custom"
 FORMATS = (FORMAT_SENTRY, FORMAT_CUSTOM)
 
 LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "[::1]"})
+
+# Built-in destination: the plugin developer's GlitchTip project. A Sentry DSN
+# is a public client key by design (see docs/implementation-plan.md); it is used
+# only when the user has not stored their own, and rotating it needs a release.
+DEFAULT_SENTRY_DSN = "https://01541d68-6611-432f-9dd5-db886a2e4579@errors.loki.m4p.uk/1"
 
 logger = get_logger()
 
@@ -114,8 +120,16 @@ class ErrorReporter:
         return value if value in FORMATS else FORMAT_SENTRY
 
     def dsn(self) -> str:
-        """The DSN is held as a credential, not in plain settings."""
-        return str(self._settings.credential("sentry") or "").strip()
+        """A user-supplied DSN is a credential; the built-in default is the fallback."""
+        return str(self._settings.credential("sentry") or DEFAULT_SENTRY_DSN or "").strip()
+
+    def using_builtin_destination(self) -> bool:
+        """True when Sentry reports go to the built-in destination."""
+        return (
+            self.format() == FORMAT_SENTRY
+            and not self._settings.credential("sentry")
+            and bool(DEFAULT_SENTRY_DSN)
+        )
 
     def endpoint(self) -> str:
         return str(self._settings.get("errorReportingEndpoint") or "").strip()
@@ -300,6 +314,7 @@ class ErrorReporter:
             "format": self.format(),
             "formats": list(FORMATS),
             "destination": self.destination_display(),
+            "usingBuiltinDestination": self.using_builtin_destination(),
             "problem": problem,
             "schemaVersion": SCHEMA_VERSION,
             "sent": self._sent,
