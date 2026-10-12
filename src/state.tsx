@@ -348,6 +348,12 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
       if (!installationId) return;
       await run("Removing addon", async () => {
         await api.removeAddon(installationId, addonId);
+        if (selectedRef.current !== installationId) return;
+        setSearch((previous) => previous ? {
+          ...previous,
+          results: previous.results.map((addon) => addon.id.toLowerCase() === addonId.toLowerCase()
+            ? { ...addon, installed: false, installedVersion: undefined } : addon),
+        } : previous);
         await loadInstalled({ refresh: true });
       });
     },
@@ -371,7 +377,15 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
       const installationId = selectedRef.current;
       if (!installationId) return;
       await run("Installing addon", async () => {
-        await api.installAddon(installationId, provider, providerId, replace);
+        const result = await api.installAddon(installationId, provider, providerId, replace);
+        if (selectedRef.current !== installationId) return;
+        setSearch((previous) => previous ? {
+          ...previous,
+          results: previous.results.map((addon) =>
+            addon.provider === provider && addon.providerId.toLowerCase() === providerId.toLowerCase()
+              ? { ...addon, installedVersion: result.addon.installedVersion, installed: true }
+              : addon),
+        } : previous);
         await loadInstalled({ refresh: true });
       });
     },

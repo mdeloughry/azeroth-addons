@@ -128,6 +128,7 @@ async def test_install_emits_progress_and_change_events(service_stack, emitter):
     assert events.OPERATION in emitter.names()
     phases = [payload["phase"] for payload in emitter.payloads(events.OPERATION)]
     assert phases == ["start", "done"]
+    assert emitter.payloads(events.OPERATION)[0]["addon"]["id"] == "curseforge:masque"
     assert events.ADDONS_CHANGED in emitter.names()
     assert emitter.payloads(events.ADDONS_CHANGED)[-1]["reason"] == "install"
 
@@ -178,6 +179,8 @@ async def test_update_all_loops_targets_and_isolates_failures(service_stack, add
     progress = [payload for payload in emitter.payloads(events.OPERATION) if payload["kind"] == "update_all"]
     assert max(payload["current"] for payload in progress) == 3
     assert progress[-1]["phase"] == "done"
+    assert progress[1]["addon"]["id"] == targets[0].id
+    assert progress[1]["current"] == 0
 
 
 async def test_update_all_falls_back_to_a_bulk_update_when_nothing_is_enumerated(service_stack):

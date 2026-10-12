@@ -17,14 +17,12 @@ const FILL: React.CSSProperties = {
 export const ProgressBar: FC<{ current: number; total: number }> = ({ current, total }) => {
   if (total <= 0) {
     return (
-      <div style={TRACK} aria-label="Working">
-        <div style={{ ...FILL, width: "35%" }} />
-      </div>
+      <progress aria-label="Working" style={{ width: "100%", height: "6px", accentColor: "#67a5eb" }} />
     );
   }
   const percent = Math.max(0, Math.min(100, Math.round((current / total) * 100)));
   return (
-    <div style={TRACK} aria-label={`${percent}% complete`}>
+    <div style={TRACK} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-label={`${percent}% complete`}>
       <div style={{ ...FILL, width: `${percent}%` }} />
     </div>
   );

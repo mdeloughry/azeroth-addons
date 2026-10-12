@@ -20,7 +20,7 @@ export const SearchView: FC = () => {
 
   const results = (plugin.search?.results ?? []).filter((addon) => selectedSources.includes(addon.provider));
   const installedIds = useMemo(
-    () => new Set((plugin.installed?.addons ?? []).map((addon) => addon.id)),
+    () => new Set((plugin.installed?.addons ?? []).map((addon) => `${addon.provider}:${addon.providerId}`.toLowerCase())),
     [plugin.installed],
   );
 
@@ -146,7 +146,7 @@ export const SearchView: FC = () => {
               <AddonRow
                 key={addon.id}
                 addon={addon}
-                actions={{ showInstall: true, installed: installedIds.has(addon.id) }}
+                actions={{ showInstall: true, installed: Boolean(addon.installed || addon.installedVersion || installedIds.has(`${addon.provider}:${addon.providerId}`.toLowerCase())) }}
                 disabled={plugin.selected?.available === false}
               />
             ))}

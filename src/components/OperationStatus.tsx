@@ -25,7 +25,7 @@ export const OperationStatus: FC = () => {
     <PanelSection>
       <PanelSectionRow>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-          <Spinner style={{ width: "16px", height: "16px" }} />
+          {busy && operation.phase !== "failed" && operation.phase !== "done" ? <Spinner style={{ width: "16px", height: "16px" }} /> : null}
           <span style={{ fontWeight: 500 }}>{label}</span>
           {counting ? (
             <span style={{ marginLeft: "auto", fontVariantNumeric: "tabular-nums", opacity: 0.8 }}>
@@ -44,7 +44,7 @@ export const OperationStatus: FC = () => {
       ) : null}
       {busy ? null : (
         <PanelSectionRow>
-          <div style={{ fontSize: "11px", opacity: 0.6 }}>Finished.</div>
+          <div style={{ fontSize: "11px", opacity: 0.6 }}>{operation.phase === "failed" ? "Failed." : "Finished."}</div>
         </PanelSectionRow>
       )}
     </PanelSection>

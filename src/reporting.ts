@@ -86,6 +86,10 @@ export function installErrorReporting(): void {
 
   window.addEventListener("unhandledrejection", (event) => {
     const described = describe(event.reason);
+    if (described.message === "User canceled" || described.message === "User cancelled") {
+      event.preventDefault();
+      return;
+    }
     reportError({ code: "UI_UNHANDLED_REJECTION", message: described.message, details: described.details });
   });
 }

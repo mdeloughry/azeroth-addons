@@ -211,11 +211,34 @@ async def test_github_search_filters_forks_and_archived(monkeypatch):
     }
 
     async def fake_fetch(url, **kwargs):
-        return payload
+        if "/search/repositories" in url:
+            return payload
+        return [{"assets": [{"name": "Masque.zip", "content_type": "application/zip"}]}]
 
     monkeypatch.setattr("azeroth_addons.providers.github.fetch_json", fake_fetch)
     results = await GitHubProvider().search("masque")
     assert [(addon.provider, addon.provider_id) for addon in results] == [("github", "SFX-WoW/Masque")]
+
+
+async def test_github_search_excludes_executable_only_updater_and_caches_checks(monkeypatch):
+    calls = []
+    async def fetch(url, **kwargs):
+        calls.append(url)
+        if "/search/repositories" in url:
+            return {"items": [
+                {"full_name": "Luzenna/spoken-updater", "name": "spoken-updater"},
+                {"full_name": "rusty-key/spoken-wow", "name": "Spoken"},
+            ]}
+        if "spoken-updater" in url:
+            return [{"assets": [{"name": "spoken-updater.exe", "content_type": "application/octet-stream"}]}]
+        return [{"assets": [{"name": "SpokenPlayer.zip", "content_type": "application/zip"}]}]
+
+    monkeypatch.setattr("azeroth_addons.providers.github.fetch_json", fetch)
+    provider = GitHubProvider()
+    for _ in range(2):
+        results = await provider.search("spoken")
+        assert [addon.provider_id for addon in results] == ["rusty-key/spoken-wow"]
+    assert len([url for url in calls if url.endswith("/releases")]) == 2
 
 
 async def test_github_get_addon_and_versions(monkeypatch):

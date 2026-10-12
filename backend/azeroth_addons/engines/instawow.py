@@ -188,7 +188,7 @@ def _definition_parts(record: Mapping[str, Any]) -> tuple[str | None, str | None
         if source or ident:
             return (_as_text(source), _as_text(ident))
     source = _as_text(_first_present(record, "source", "source_id", "sourceId", "sourceName"))
-    ident = _as_text(_first_present(record, "id", "slug", "addon_id", "addonId", "alias"))
+    ident = _as_text(_first_present(record, "slug", "id", "addon_id", "addonId", "alias"))
     return source, ident
 
 

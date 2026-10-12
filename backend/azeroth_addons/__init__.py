@@ -4,7 +4,7 @@ Provider-neutral, engine-neutral addon management for World of Warcraft
 installations, exposed to the Decky frontend over the plugin RPC channel.
 """
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 
 # The bundled addon engine this build is pinned against. The release process
 # downloads exactly this artifact and verifies it against the digest below

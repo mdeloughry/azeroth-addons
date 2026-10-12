@@ -10,7 +10,9 @@ underlying GitHub identifier is the conventional ``owner/repository``.
 
 from __future__ import annotations
 
+import asyncio
 import re
+import time
 from typing import Callable, Sequence
 
 from ..addons.models import PROVIDER_GITHUB, Addon
@@ -63,6 +65,8 @@ class GitHubProvider(AddonProvider):
     def __init__(self, credential_provider: Callable[[], str | None] | None = None) -> None:
         self._credential_provider = credential_provider
         self._rate_limit: dict[str, str] = {}
+        self._search_release_cache: dict[str, tuple[float, bool]] = {}
+        self._release_checks = asyncio.Semaphore(3)
 
     # --- credentials / capabilities ---------------------------------------
 
@@ -137,18 +141,41 @@ class GitHubProvider(AddonProvider):
                 "q": f"{query} wow addon in:name,description",
                 "sort": "stars",
                 "order": "desc",
-                "per_page": max(1, min(limit, 50)),
+                "per_page": max(1, min(limit, 10)),
             },
             timeout=12.0,
         )
         items = payload.get("items", []) if isinstance(payload, dict) else []
         results: list[Addon] = []
+        candidates: list[dict] = []
         for repo in items:
             if not isinstance(repo, dict) or repo.get("archived") or repo.get("fork"):
                 continue
             full_name = str(repo.get("full_name") or "")
             if not REPO_PATTERN.match(full_name):
                 continue
+            candidates.append(repo)
+
+        async def has_addon_release(repo: dict) -> bool:
+            full_name = repo["full_name"]
+            cached = self._search_release_cache.get(full_name.lower())
+            if cached and time.monotonic() - cached[0] < 300:
+                return cached[1]
+            async with self._release_checks:
+                releases = await self._releases(full_name, limit=5)
+                usable = any(not release.get("draft") and self._assets_for(release) for release in releases)
+                self._search_release_cache[full_name.lower()] = (time.monotonic(), usable)
+                return usable
+
+        checks = await asyncio.gather(*(has_addon_release(repo) for repo in candidates), return_exceptions=True)
+        errors = []
+        for repo, usable in zip(candidates, checks):
+            if isinstance(usable, BaseException):
+                errors.append(usable)
+                continue
+            if not usable:
+                continue
+            full_name = repo["full_name"]
             results.append(
                 self._addon(
                     full_name,
@@ -157,6 +184,8 @@ class GitHubProvider(AddonProvider):
                     homepage=repo.get("html_url"),
                 )
             )
+        if errors and not results:
+            raise errors[0]
         logger.debug(
             "github search results=%d %s",
             len(results),

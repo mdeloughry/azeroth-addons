@@ -107,6 +107,10 @@ and referenced by `plugin.json`'s `publish.image`.*
 4. Press **Install**. Installs always run through the addon engine, never from
    the UI.
 
+Installed packages have a disabled Install icon. During an install or update,
+an activity bar overlays the addon being processed; it does not estimate download
+percentages. Update All also shows overall addon counts.
+
 Unavailable sources are greyed out and unchecked. Press **Set up** next to one
 to see its credential requirements or manual installation instructions.
 Unconfigured download sources do not contribute search results, and selecting

@@ -190,6 +190,17 @@ def test_parse_packages_handles_the_primary_shape():
     assert packages[0].folder_name == "Masque"
 
 
+def test_real_engine_numeric_ids_normalise_to_catalogue_slugs():
+    packages, unparsed = parse_packages([
+        {"source": "curse", "id": "1700375", "slug": "spoken-player", "name": "Spoken Player", "version": "3.2.0"},
+        {"source": "github", "id": "987654", "slug": "rusty-key/spoken-wow", "version": "3.2.0"},
+    ])
+    assert unparsed == 0
+    assert [package.to_addon().id for package in packages] == [
+        "curseforge:spoken-player", "github:rusty-key/spoken-wow",
+    ]
+
+
 def test_parse_packages_handles_wrappers_and_aliases():
     payload = {
         "packages": [

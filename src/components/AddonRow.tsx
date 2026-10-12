@@ -5,6 +5,7 @@ import {
   Navigation,
   PanelSection,
   PanelSectionRow,
+  Spinner,
   showModal,
 } from "@decky/ui";
 import { FC, useMemo } from "react";
@@ -13,8 +14,10 @@ import { FaDownload, FaExternalLinkAlt, FaHistory, FaSyncAlt, FaTrashAlt } from 
 import { usePlugin } from "../state";
 import { Addon } from "../types";
 import { Badge, ProviderBadge, StateBadge } from "./Badges";
+import { ProgressBar } from "./ProgressBar";
 
 const ROW: React.CSSProperties = {
+  position: "relative",
   display: "flex",
   flexDirection: "column",
   gap: "8px",
@@ -72,6 +75,11 @@ export const AddonRow: FC<{
   const plugin = usePlugin();
   const busy = plugin.busy !== null;
   const blocked = busy || disabled;
+  const operation = plugin.operation;
+  const active = busy && operation && operation.installationId === plugin.selected?.id
+    && operation.addon?.provider === addon.provider
+    && operation.addon?.providerId.toLowerCase() === addon.providerId.toLowerCase()
+    && operation.phase !== "done" && operation.phase !== "failed";
 
   const version = addon.installedVersion
     ? addon.availableVersion && addon.availableVersion !== addon.installedVersion
@@ -80,7 +88,7 @@ export const AddonRow: FC<{
     : addon.availableVersion ?? "";
 
   return (
-    <div style={ROW}>
+    <div style={ROW} aria-busy={Boolean(active)}>
       <div style={NAME} title={addon.name}>
         <div style={{ fontWeight: 600, lineHeight: "1.4", whiteSpace: "normal", overflowWrap: "anywhere" }}>{addon.name}</div>
         {addon.description ? (
@@ -164,6 +172,15 @@ export const AddonRow: FC<{
           ) : null}
         </Focusable>
       </div>
+      {active ? (
+        <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "rgba(16,29,43,0.9)", border: "1px solid #67a5eb", borderRadius: "6px", display: "flex", flexDirection: "column", justifyContent: "center", gap: "10px", padding: "12px", pointerEvents: "none" }} role="status" aria-live="polite">
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Spinner style={{ width: "16px", height: "16px" }} />
+            <span style={{ overflowWrap: "anywhere" }}>{operation?.kind === "install" ? "Installing" : operation?.kind === "remove" ? "Removing" : operation?.kind === "rollback" ? "Rolling back" : "Updating"} {addon.name}…</span>
+          </div>
+          <ProgressBar current={0} total={0} />
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -25,6 +25,7 @@ export interface AzerothError {
 export type Envelope<T> = { ok: true; data: T } | { ok: false; error: AzerothError };
 
 export interface Addon {
+  installed?: boolean;
   id: string;
   name: string;
   provider: string;

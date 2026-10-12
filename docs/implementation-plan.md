@@ -295,6 +295,21 @@ installs on v0.1.5. All engine calls now pass global `--verbose`: the pinned
 instawow 7.2.1 implementation disables terminal progress rendering when verbosity
 is positive. Device installation retries remain required to verify the fix.
 
+### Installed-state and item progress correction (v0.1.7)
+
+The engine's package list contains numeric IDs plus canonical slugs. Slugs now
+drive UI identities, matching catalogue search results. Successful installs mark
+their search row installed immediately, and removal clears that state. Install
+events identify the pending addon from the start; Update All identifies each
+target before its engine call. Item overlays show activity without inventing
+byte-level percentages.
+
+GlitchTip issue 8 showed an executable-only GitHub updater being offered as an
+addon. Direct GitHub search now checks release ZIP availability, with bounded
+concurrency and a short cache. The engine still validates actual archive and game
+compatibility. Expected Steam `User canceled` rejections no longer generate
+frontend error reports; other unhandled rejections remain reported.
+
 ---
 
 ## Error tracking (added after the MVP)

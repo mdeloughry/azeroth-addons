@@ -265,9 +265,13 @@ class AddonService:
                 provider=provider,
                 details=access["setupInstructions"],
             )
-        await self._progress(installation, "install", phase="start", message=f"Installing {provider_id}…")
+        pending = Addon(id=f"{provider}:{provider_id}", name=provider_id, provider=provider, provider_id=provider_id)
+        await self._progress(installation, "install", phase="start", addon=pending, message=f"Installing {provider_id}…")
         try:
             addon = await engine.install(installation, provider, provider_id, replace=replace)
+        except Exception:
+            await self._progress(installation, "install", phase="failed", addon=pending)
+            raise
         finally:
             self._invalidate(installation_id)
         await self._progress(installation, "install", phase="done", current=1, total=1, addon=addon)
@@ -313,6 +317,7 @@ class AddonService:
             total = len(targets)
             await self._progress(installation, "update_all", phase="start", current=0, total=total)
             for index, target in enumerate(targets, start=1):
+                await self._progress(installation, "update_all", phase="progress", current=index - 1, total=total, addon=target)
                 try:
                     result = await engine.update(installation, target)
                     updated.append(result)
