@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a reproducible addon-manager problem
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "For sensitive vulnerabilities use SECURITY.md. Never post credentials, DSNs or unredacted device logs."
+  - type: input
+    id: plugin_version
+    attributes:
+      label: Plugin version
+      placeholder: 0.1.8
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Device, SteamOS version/channel, and Decky version
+    validations:
+      required: true
+  - type: input
+    id: flavour
+    attributes:
+      label: WoW flavour and addon/source involved
+      description: Include whether the game was running and whether storage was internal/external; omit private paths.
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected_actual
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted Diagnostics details or screenshot
+      description: Include error code/message. Remove keys, DSNs, usernames and private file paths before posting.

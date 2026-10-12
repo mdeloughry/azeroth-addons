@@ -24,7 +24,7 @@ BIN_DIR="${ROOT}/bin"
 THIRD_PARTY_DIR="${ROOT}/third_party/instawow"
 STAMP="${BIN_DIR}/.instawow-${VERSION}.sha256"
 
-if [ -x "${BIN_DIR}/instawow" ] && [ -f "${STAMP}" ]; then
+if [ -x "${BIN_DIR}/instawow" ] && [ -f "${STAMP}" ] && [ -s "${THIRD_PARTY_DIR}/COPYING" ]; then
   echo "instawow ${VERSION} already installed; nothing to do."
   exit 0
 fi
@@ -59,13 +59,12 @@ if [ -z "${BIN}" ]; then
   exit 1
 fi
 
-install -m 0755 "${BIN}" "${BIN_DIR}/instawow"
-printf '%s\n' "${SHA256}" > "${STAMP}"
-
 echo "Fetching upstream licence text…"
-if ! curl -fsSL "${COPYING_URL}" -o "${THIRD_PARTY_DIR}/COPYING"; then
-  echo "warning: could not download the instawow COPYING file; THIRD_PARTY_LICENSES.md still applies." >&2
-fi
+curl -fsSL --retry 3 --retry-delay 2 "${COPYING_URL}" -o "${TMP}/COPYING"
+test -s "${TMP}/COPYING"
+install -m 0755 "${BIN}" "${BIN_DIR}/instawow"
+install -m 0644 "${TMP}/COPYING" "${THIRD_PARTY_DIR}/COPYING"
+printf '%s\n' "${SHA256}" > "${STAMP}"
 
 echo
 echo "instawow ${VERSION} installed at bin/instawow"

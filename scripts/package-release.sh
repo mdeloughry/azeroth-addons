@@ -29,6 +29,7 @@ PY
 )"
 
 echo "Packaging ${NAME} ${VERSION}"
+python3 "${ROOT}/scripts/check-release.py"
 
 echo "1/4  Building the frontend…"
 if [ ! -d "${ROOT}/node_modules" ]; then
@@ -45,11 +46,20 @@ mkdir -p "${STAGE}/py_modules"
 cp -R "${ROOT}/dist" "${STAGE}/dist"
 cp -R "${ROOT}/bin" "${STAGE}/bin"
 cp -R "${ROOT}/backend" "${STAGE}/backend"
+cp -R "${ROOT}/docs" "${STAGE}/docs"
 if [ -d "${ROOT}/third_party" ]; then
   cp -R "${ROOT}/third_party" "${STAGE}/third_party"
 fi
 cp "${ROOT}/main.py" "${ROOT}/plugin.json" "${ROOT}/package.json" "${STAGE}/"
-cp "${ROOT}/README.md" "${ROOT}/LICENSE" "${ROOT}/THIRD_PARTY_LICENSES.md" "${STAGE}/"
+for DOCUMENT in README.md LICENSE THIRD_PARTY_LICENSES.md CHANGELOG.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md; do
+  cp "${ROOT}/${DOCUMENT}" "${STAGE}/"
+done
+mkdir -p "${STAGE}/third_party/licenses"
+cp "${ROOT}/node_modules/@decky/api/LICENSE" "${STAGE}/third_party/licenses/decky-api-LICENSE"
+cp "${ROOT}/node_modules/@decky/ui/LICENSE" "${STAGE}/third_party/licenses/decky-ui-LICENSE"
+cp "${ROOT}/node_modules/react-icons/LICENSE" "${STAGE}/third_party/licenses/react-icons-LICENSE"
+cp "${ROOT}/node_modules/tslib/CopyrightNotice.txt" "${ROOT}/node_modules/tslib/LICENSE.txt" "${STAGE}/third_party/licenses/"
+test -s "${STAGE}/third_party/instawow/COPYING"
 if [ -f "${ROOT}/py_modules/.keep" ]; then
   cp "${ROOT}/py_modules/.keep" "${STAGE}/py_modules/.keep"
 fi

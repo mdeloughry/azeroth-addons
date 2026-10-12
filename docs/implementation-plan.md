@@ -1,5 +1,10 @@
 # Azeroth Addons — Decky Plugin Implementation Plan
 
+> Historical design/build log. Later entries supersede the original milestones.
+> Current user behavior: [getting started](GETTING_STARTED.md). Current release
+> direction: [roadmap](ROADMAP.md) and [release process](RELEASING.md).
+> GitHub is the distribution channel; no Decky store submission is planned.
+
 ## Summary (read this first)
 
 **Build**: A Decky Loader plugin that manages WoW addons from Gaming Mode.

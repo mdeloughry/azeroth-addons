@@ -11,6 +11,8 @@ This is the layer the RPC surface talks to. It owns:
 
 from __future__ import annotations
 
+import asyncio
+import functools
 import time
 from typing import Any, Awaitable, Callable, Sequence
 
@@ -43,6 +45,19 @@ async def _noop_emit(event: str, payload: Any = None) -> None:  # pragma: no cov
     return None
 
 
+def _serialized(method: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
+    """Keep reads and writes coherent for one installation, including RPC callers."""
+    @functools.wraps(method)
+    async def locked(self: "AddonService", installation_id: str, *args: Any, **kwargs: Any) -> Any:
+        self._installations.get(installation_id)
+        lock = self._locks.setdefault(installation_id, asyncio.Lock())
+        async with lock:
+            # The method resolves paths/availability and checks WoW after the
+            # wait, not before: a queued operation must revalidate its target.
+            return await method(self, installation_id, *args, **kwargs)
+    return locked
+
+
 class AddonService:
     def __init__(
         self,
@@ -61,6 +76,7 @@ class AddonService:
         self._emit = emit or _noop_emit
         self._proc_root = proc_root
         self._cache: dict[str, tuple[float, dict[str, Any]]] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
 
     # --- helpers -----------------------------------------------------------
 
@@ -158,6 +174,7 @@ class AddonService:
 
     # --- reads -------------------------------------------------------------
 
+    @_serialized
     async def installed(
         self,
         installation_id: str,
@@ -173,7 +190,7 @@ class AddonService:
 
         engine = self._engine()
         if reconcile and engine.capabilities().reconcile:
-            result = await engine.reconcile(installation)
+            result = await engine.inventory(installation)
             managed, unmanaged = result.managed, result.unmanaged
         else:
             managed, unmanaged = await engine.list_installed(installation), []
@@ -193,6 +210,7 @@ class AddonService:
         self._cache[installation_id] = (time.monotonic(), payload)
         return payload
 
+    @_serialized
     async def installed_addons(self, installation_id: str, *, refresh: bool = False) -> list[Addon]:
         """The managed addon list (used to annotate search results)."""
         installation = self.resolve(installation_id)
@@ -209,6 +227,7 @@ class AddonService:
         )
         return addons
 
+    @_serialized
     async def check_updates(self, installation_id: str) -> dict[str, Any]:
         installation = self.resolve(installation_id)
         engine = self._engine()
@@ -239,6 +258,7 @@ class AddonService:
 
     # --- mutations ---------------------------------------------------------
 
+    @_serialized
     async def install(
         self,
         installation_id: str,
@@ -281,6 +301,7 @@ class AddonService:
         )
         return addon
 
+    @_serialized
     async def update(self, installation_id: str, addon_id: str) -> Addon:
         installation = self.resolve(installation_id)
         self._assert_writable(installation, "update")
@@ -298,6 +319,7 @@ class AddonService:
         )
         return updated
 
+    @_serialized
     async def update_all(self, installation_id: str) -> dict[str, Any]:
         installation = self.resolve(installation_id)
         self._assert_writable(installation, "update_all")
@@ -358,6 +380,7 @@ class AddonService:
             "failures": failures,
         }
 
+    @_serialized
     async def remove(self, installation_id: str, addon_id: str) -> dict[str, Any]:
         installation = self.resolve(installation_id)
         self._assert_writable(installation, "remove")
@@ -381,6 +404,7 @@ class AddonService:
         )
         return {"installationId": installation.id, "removed": addon.to_dict()}
 
+    @_serialized
     async def rollback(self, installation_id: str, addon_id: str) -> Addon:
         installation = self.resolve(installation_id)
         self._assert_writable(installation, "rollback")

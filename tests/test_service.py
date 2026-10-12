@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import shutil
 from pathlib import Path
 
@@ -47,16 +48,117 @@ async def test_installed_returns_managed_and_unmanaged(service_stack, addon_fact
     assert payload["running"] is False
 
 
+async def test_read_does_not_reconcile_while_game_runs(service_stack, fake_proc):
+    proc, add = fake_proc
+    engine = FakeEngine()
+    registered = service_stack(engine=engine, proc_root=str(proc))
+    add(1, str(registered.installation.root_path) + "/Wow.exe")
+    payload = await registered.service.installed(registered.installation.id)
+    assert payload["running"] is True
+    assert not any(call[0] == "reconcile" for call in engine.calls)
+
+
+async def test_same_installation_serializes_mutations(service_stack):
+    class OverlapEngine(FakeEngine):
+        active = 0
+        max_active = 0
+
+        async def install(self, *args, **kwargs):
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            try:
+                await asyncio.sleep(0.02)
+                return await super().install(*args, **kwargs)
+            finally:
+                self.active -= 1
+
+    engine = OverlapEngine()
+    registered = service_stack(engine=engine)
+    await asyncio.gather(
+        registered.service.install(registered.installation.id, "github", "owner/first"),
+        registered.service.install(registered.installation.id, "github", "owner/second"),
+    )
+    assert engine.max_active == 1
+
+
+async def test_queued_mutation_rechecks_running_game(service_stack, fake_proc):
+    started, finish = asyncio.Event(), asyncio.Event()
+    class BlockingEngine(FakeEngine):
+        async def install(self, *args, **kwargs):
+            started.set()
+            await finish.wait()
+            return await super().install(*args, **kwargs)
+    proc, add = fake_proc
+    engine = BlockingEngine()
+    registered = service_stack(engine=engine, proc_root=str(proc))
+    first = asyncio.create_task(registered.service.install(registered.installation.id, "github", "owner/first"))
+    await asyncio.wait_for(started.wait(), 1)
+    second = asyncio.create_task(registered.service.install(registered.installation.id, "github", "owner/second"))
+    await asyncio.sleep(0)
+    add(1, str(registered.installation.root_path) + "/Wow.exe")
+    finish.set()
+    await first
+    with pytest.raises(AzerothAddonsError) as error:
+        await second
+    assert error.value.code == WOW_RUNNING
+    assert len([call for call in engine.calls if call[0] == "install"]) == 1
+
+
+async def test_different_installations_can_work_independently(stack, make_installation, seed_installation, tmp_path):
+    both_started, finish = asyncio.Event(), asyncio.Event()
+    class BlockingEngine(FakeEngine):
+        active = 0
+        async def install(self, *args, **kwargs):
+            self.active += 1
+            if self.active == 2:
+                both_started.set()
+            await finish.wait()
+            return await super().install(*args, **kwargs)
+    first = make_installation(parent=tmp_path / "first")
+    second = make_installation(parent=tmp_path / "second")
+    engine = BlockingEngine()
+    def register(manager):
+        seed_installation(manager, first)
+        seed_installation(manager, second)
+    registered = stack(engine=engine, register=register)
+    tasks = [asyncio.create_task(registered.service.install(item.id, "github", "owner/addon")) for item in (first, second)]
+    try:
+        await asyncio.wait_for(both_started.wait(), 1)
+    finally:
+        finish.set()
+        await asyncio.gather(*tasks)
+
+
+async def test_inventory_waits_for_write_and_lock_releases_after_failure(service_stack):
+    started, finish = asyncio.Event(), asyncio.Event()
+    class BlockingEngine(FakeEngine):
+        async def install(self, *args, **kwargs):
+            started.set()
+            await finish.wait()
+            raise RuntimeError("failed install")
+    engine = BlockingEngine()
+    registered = service_stack(engine=engine)
+    write = asyncio.create_task(registered.service.install(registered.installation.id, "github", "owner/addon"))
+    await asyncio.wait_for(started.wait(), 1)
+    read = asyncio.create_task(registered.service.installed(registered.installation.id))
+    await asyncio.sleep(0)
+    assert not any(call[0] == "inventory" for call in engine.calls)
+    finish.set()
+    with pytest.raises(RuntimeError):
+        await write
+    assert (await asyncio.wait_for(read, 1))["counts"]["installed"] == 0
+
+
 async def test_installed_is_cached_until_invalidated(service_stack, addon_factory):
     engine = FakeEngine(addons=[addon_factory("curseforge", "masque")])
     registered = service_stack(engine=engine)
     await registered.service.installed(registered.installation.id)
-    reconciles = sum(1 for call in engine.calls if call[0] == "reconcile")
+    reads = sum(1 for call in engine.calls if call[0] == "inventory")
     await registered.service.installed(registered.installation.id)
-    assert sum(1 for call in engine.calls if call[0] == "reconcile") == reconciles
+    assert sum(1 for call in engine.calls if call[0] == "inventory") == reads
 
     await registered.service.installed(registered.installation.id, refresh=True)
-    assert sum(1 for call in engine.calls if call[0] == "reconcile") == reconciles + 1
+    assert sum(1 for call in engine.calls if call[0] == "inventory") == reads + 1
 
 
 async def test_install_refuses_unconfigured_download_source_before_engine_run(service_stack):

@@ -30,18 +30,19 @@ This file records the third-party components that are **bundled** with, or
 The pinned version, artifact name and checksum are also recorded in code
 (`backend/azeroth_addons/__init__.py`) and surfaced in the Settings screen.
 
-**Why the licence permits this**
+**Source and build provenance**
 
-instawow is GPL-3.0-or-later, which permits redistribution of the unmodified
-binary together with its licence text and an offer of corresponding source.
+The unmodified instawow binary is distributed under GPL-3.0-or-later, with
+its licence text and source/build provenance recorded here.
 Azeroth Addons executes instawow as a **separate program** over its documented
 command-line interface (never by linking or importing it - instawow requires
 Python >= 3.13 while Decky's plugin backend runs Python 3.11). The two programs
-communicate at arm's length, which is why Azeroth Addons can carry the same
-GPL-3.0-or-later licence without ambiguity.
+communicate through subprocess arguments and output.
 
-Source for the bundled version is available at the upstream tag
-`v7.2.1`, and on PyPI as `instawow==7.2.1`.
+Source and build configuration for the bundled version:
+[upstream v7.2.1](https://github.com/layday/instawow/tree/v7.2.1),
+[source archive](https://github.com/layday/instawow/archive/refs/tags/v7.2.1.tar.gz).
+The package is also available on PyPI as `instawow==7.2.1`.
 
 ---
 
@@ -49,9 +50,9 @@ Source for the bundled version is available at the upstream tag
 
 | Component | Licence | Use |
 | --- | --- | --- |
-| `@decky/api` | MIT | frontend RPC, events, file picker |
-| `@decky/ui` | MIT | Steam Deck UI components |
-| `@decky/rollup` | MIT | build preset |
+| `@decky/api` | LGPL-2.1 | frontend RPC, events, file picker |
+| `@decky/ui` | LGPL-2.1 | Steam Deck UI components |
+| `@decky/rollup` | BSD-3-Clause | build preset (build-time only) |
 | Decky Loader itself | GPL-3.0 | host application (not bundled) |
 
 ---
@@ -61,9 +62,19 @@ Source for the bundled version is available at the upstream tag
 | Package | Licence | Use |
 | --- | --- | --- |
 | `react` / `react-dom` | MIT | provided by the Steam client at runtime |
-| `react-icons` | MIT | plugin icon |
+| `react-icons` | MIT for library code | icons; individual icon-set licences also apply |
 | `tslib` | 0BSD | TypeScript helpers |
 | `rollup`, `typescript` | MIT / Apache-2.0 | build-time only |
+
+Font Awesome 5 icons (`react-icons/fa`) are by Font Awesome and licensed
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Source: [Font Awesome](https://fontawesome.com/). They are used as UI glyphs;
+display size/colour are styled by the plugin. The react-icons licence file
+contains the library copyright notice and icon-set attributions.
+
+Release archives include `third_party/licenses/` with the actual installed
+Decky API/UI, react-icons and tslib licence texts. The runtime engine's COPYING
+ships separately under `third_party/instawow/`.
 
 ---
 

@@ -16,6 +16,7 @@ import asyncio
 import json
 import os
 import re
+import signal
 import stat
 import tempfile
 import time
@@ -399,6 +400,7 @@ class InstawowAdapter:
                 stderr=asyncio.subprocess.PIPE,
                 stdin=asyncio.subprocess.PIPE if stdin is not None else asyncio.subprocess.DEVNULL,
                 env=self.environment(),
+                start_new_session=True,
             )
         except OSError as exc:
             raise AzerothAddonsError(
@@ -414,13 +416,15 @@ class InstawowAdapter:
                 timeout=timeout or self.base_timeout,
             )
         except asyncio.TimeoutError:
-            with_suppress = getattr(process, "kill", None)
-            if with_suppress:
-                process.kill()
-            await process.wait()
+            await self._stop_process(process)
             duration = int((time.monotonic() - started) * 1000)
             logger.warning("instawow timed out after %sms: %s", duration, argv[1:])
             return RunResult(argv, -1, "", "Operation timed out.", duration, timed_out=True)
+        except asyncio.CancelledError:
+            # Keep the installation lock held until the engine and its child
+            # processes have stopped writing, then allow cancellation through.
+            await self._stop_process(process)
+            raise
 
         duration = int((time.monotonic() - started) * 1000)
         result = RunResult(
@@ -437,6 +441,14 @@ class InstawowAdapter:
             duration,
         )
         return result
+
+    @staticmethod
+    async def _stop_process(process: asyncio.subprocess.Process) -> None:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        await process.communicate()
 
     # --- configuration -----------------------------------------------------
 
@@ -575,9 +587,6 @@ class InstawowAdapter:
         except json.JSONDecodeError:
             return {}
         return payload if isinstance(payload, dict) else {}
-
-    async def reconcile_auto(self, profile: str) -> RunResult:
-        return await self.run(["reconcile", "--auto"], profile=profile, timeout=300.0)
 
     async def update_dry_run(self, profile: str) -> RunResult:
         return await self.run(["update", "--dry-run"], profile=profile, timeout=600.0)
@@ -873,28 +882,15 @@ class InstawowEngine(AddonEngine):
             unmanaged.append(unmanaged_addon(name))
         return unmanaged
 
-    async def reconcile(self, installation: WowInstallation) -> ReconcileResult:
+    async def inventory(self, installation: WowInstallation) -> ReconcileResult:
         await self._require_ready()
-        profile = self._profile(installation)
-        await self.ensure_profile(installation)
-        try:
-            result = await self._adapter.reconcile_auto(profile)
-            if not result.ok:
-                logger.warning(
-                    "instawow reconcile did not complete cleanly %s: %s",
-                    ctx(installation=installation.id, engine=self.engine_id, operation="reconcile"),
-                    result.tail(500),
-                )
-        except AzerothAddonsError as exc:
-            logger.warning("instawow reconcile failed: %s", exc.message)
-
         managed = await self.list_installed(installation)
         unmanaged = self._find_unmanaged(installation, managed)
         logger.info(
-            "reconciled managed=%d unmanaged=%d %s",
+            "inventory managed=%d unmanaged=%d %s",
             len(managed),
             len(unmanaged),
-            ctx(installation=installation.id, engine=self.engine_id, operation="reconcile"),
+            ctx(installation=installation.id, engine=self.engine_id, operation="inventory"),
         )
         return ReconcileResult(managed=managed, unmanaged=unmanaged)
 

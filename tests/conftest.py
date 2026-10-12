@@ -277,6 +277,10 @@ class FakeEngine(AddonEngine):
         self.calls.append(("reconcile", installation.id))
         return ReconcileResult(managed=list(self.addons), unmanaged=list(self.unmanaged))
 
+    async def inventory(self, installation: WowInstallation) -> ReconcileResult:
+        self.calls.append(("inventory", installation.id))
+        return ReconcileResult(managed=list(self.addons), unmanaged=list(self.unmanaged))
+
     async def check_updates(self, installation: WowInstallation) -> list[Addon]:
         self.calls.append(("check_updates", installation.id))
         return list(self.updates)

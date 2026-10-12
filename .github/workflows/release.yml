@@ -4,6 +4,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to build (for example v0.1.8)
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -12,11 +17,21 @@ jobs:
   release:
     name: Build and publish the installable plugin
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Validate versions and release notes
+        run: python scripts/check-release.py --tag "$RELEASE_TAG" --notes "$RUNNER_TEMP/azeroth-release-notes.md"
+      - name: Install backend test dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run backend tests
+        run: python -m pytest -q
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -27,6 +42,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Validate frontend
+        run: pnpm run validate
 
       - name: Fetch the pinned engine and verify its checksum
         run: ./scripts/fetch-instawow.sh
@@ -40,18 +57,25 @@ jobs:
       # A stable asset name means the install URL never changes between
       # releases: Decky's "install from URL" field can be reused verbatim.
       - name: Prepare the stable asset name
-        run: cp release/azeroth-addons-*.zip azeroth-addons.zip
+        run: |
+          cp "release/azeroth-addons-${RELEASE_TAG#v}.zip" azeroth-addons.zip
+          sha256sum azeroth-addons.zip > azeroth-addons.zip.sha256
 
       - name: Publish the release asset
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${RELEASE_TAG}"
+          RELEASE_FLAGS=(--latest)
+          if [[ "$TAG" == *-* ]]; then
+            RELEASE_FLAGS=(--prerelease --latest=false)
+          fi
           if gh release view "${TAG}" >/dev/null 2>&1; then
-            gh release upload "${TAG}" azeroth-addons.zip --clobber
+            gh release upload "${TAG}" azeroth-addons.zip azeroth-addons.zip.sha256 --clobber
           else
-            gh release create "${TAG}" azeroth-addons.zip \
+            gh release create "${TAG}" azeroth-addons.zip azeroth-addons.zip.sha256 \
+              --verify-tag "${RELEASE_FLAGS[@]}" \
               --title "Azeroth Addons ${TAG}" \
-              --notes "Installable Decky plugin build. See the README for install steps."
+              --notes-file "$RUNNER_TEMP/azeroth-release-notes.md"
           fi

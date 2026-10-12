@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import stat
@@ -127,6 +128,38 @@ async def test_install_disables_terminal_progress_picker(make_adapter, write_spe
     # A no-TTY subprocess must pass this global option before the command.
     args = read_calls()[-1]["args"]
     assert args.index("--verbose") < args.index("install")
+
+
+@pytest.mark.parametrize("cancel", [False, True])
+async def test_engine_is_stopped_before_timeout_or_cancellation_returns(make_adapter, tmp_path, cancel):
+    adapter = make_adapter()
+    pid_file = tmp_path / "engine.pid"
+    adapter.binary.write_text(
+        "#!/usr/bin/env python3\nimport os, time\nfrom pathlib import Path\n"
+        f"Path({str(pid_file)!r}).write_text(str(os.getpid()))\ntime.sleep(30)\n"
+    )
+    task = asyncio.create_task(adapter.run(["install", "github:owner/addon"], timeout=0.5 if not cancel else 10))
+    async def started():
+        while not pid_file.exists():
+            await asyncio.sleep(0.01)
+    try:
+        await asyncio.wait_for(started(), 3)
+        pid = int(pid_file.read_text())
+        if cancel:
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        else:
+            assert (await task).timed_out is True
+        with pytest.raises(ProcessLookupError):
+            os.kill(pid, 0)
+    finally:
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 
 def test_redact_removes_configured_credentials(tmp_path: Path, make_adapter):
@@ -526,9 +559,14 @@ async def test_reconcile_keeps_unmanaged_addons_and_ignores_owned_siblings(
     assert unmanaged == {"ConsolePort", "WeakAuras"}  # Masque_Options is owned by Masque
 
 
-async def test_reconcile_survives_a_failing_reconcile_command(
-    tmp_path: Path, make_adapter, write_spec, installation
+async def test_inventory_never_runs_auto_reconcile_or_changes_unmanaged_files(
+    tmp_path: Path, make_adapter, write_spec, installation, read_calls
 ):
+    folder = Path(installation.addons_path) / "ManualAddon"
+    folder.mkdir()
+    addon_file = folder / "ManualAddon.toc"
+    addon_file.write_bytes(b"## Interface: 120100\n## Title: Keep my version\n")
+    original = addon_file.read_bytes()
     write_spec(
         **{
             "reconcile --auto": {"code": 1, "stderr": "boom"},
@@ -536,8 +574,11 @@ async def test_reconcile_survives_a_failing_reconcile_command(
         }
     )
     engine = make_engine(make_adapter(), tmp_path)
-    result = await engine.reconcile(installation)
+    result = await engine.inventory(installation)
     assert result.managed == []
+    assert [addon.folder_name for addon in result.unmanaged] == ["ManualAddon"]
+    assert addon_file.read_bytes() == original
+    assert not any("reconcile" in call["args"] for call in read_calls())
 
 
 async def test_search_maps_results_to_providers(tmp_path: Path, make_adapter, write_spec, installation, monkeypatch):

@@ -1,0 +1,20 @@
+name: Feature request
+description: Explain a user problem and proposed improvement
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior and alternatives
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: How would you verify it works?

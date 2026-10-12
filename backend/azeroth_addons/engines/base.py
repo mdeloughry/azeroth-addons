@@ -121,9 +121,13 @@ class AddonEngine(ABC):
     async def list_installed(self, installation: WowInstallation) -> list[Addon]:
         ...
 
-    @abstractmethod
+    async def inventory(self, installation: WowInstallation) -> ReconcileResult:
+        """Read managed/unmanaged state without adopting, downloading or replacing files."""
+        return ReconcileResult(managed=await self.list_installed(installation))
+
     async def reconcile(self, installation: WowInstallation) -> ReconcileResult:
-        ...
+        """Legacy read-only inventory alias; adoption is not part of this API."""
+        return await self.inventory(installation)
 
     @abstractmethod
     async def check_updates(self, installation: WowInstallation) -> list[Addon]:
