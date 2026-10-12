@@ -91,6 +91,9 @@ export interface ProviderCapabilities {
 }
 
 export interface ProviderStatus {
+  downloadAvailable?: boolean;
+  searchAvailable?: boolean;
+  setupInstructions?: string;
   id: string;
   displayName: string;
   available: boolean;

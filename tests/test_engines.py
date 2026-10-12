@@ -109,6 +109,26 @@ def test_environment_sets_home_and_tokens_without_leaking(tmp_path: Path, make_a
     assert "cf-secret" not in json.dumps(loggable)
 
 
+def test_source_download_access_tracks_engine_credentials(tmp_path, make_adapter, monkeypatch):
+    monkeypatch.delenv("INSTAWOW_ACCESS_TOKENS_CFCORE", raising=False)
+    engine = make_engine(make_adapter(), tmp_path)
+    assert engine.source_access("curseforge")["downloadAvailable"] is False
+    assert engine.source_access("github")["searchAvailable"] is True
+    assert "Interface/AddOns" in engine.source_access("curseforge")["setupInstructions"]
+    configured = make_engine(make_adapter(tokens={"curseforge": "test-key"}), tmp_path)
+    assert configured.source_access("curseforge")["searchAvailable"] is True
+
+
+async def test_install_disables_terminal_progress_picker(make_adapter, write_spec, read_calls):
+    write_spec(**{"install github:owner/addon": {"code": 0}})
+    result = await make_adapter().install("az-test", "github:owner/addon")
+    assert result.ok
+    # instawow 7.2.1 suppresses prompt_toolkit progress when verbosity > 0.
+    # A no-TTY subprocess must pass this global option before the command.
+    args = read_calls()[-1]["args"]
+    assert args.index("--verbose") < args.index("install")
+
+
 def test_redact_removes_configured_credentials(tmp_path: Path, make_adapter):
     adapter = make_adapter(tokens={"curseforge": "super-secret-key"})
     assert "super-secret-key" not in adapter.redact("key=super-secret-key done")
@@ -374,8 +394,8 @@ async def test_update_and_remove_generate_the_expected_arguments(
     assert updated.installed_version == "9.0.0"
     await engine.remove(installation, addon)
     args = [call["args"] for call in read_calls()]
-    assert ["--profile", installation.engine_profile, "update", "curse:masque"] in args
-    assert ["--profile", installation.engine_profile, "remove", "curse:masque"] in args
+    assert ["--profile", installation.engine_profile, "--verbose", "update", "curse:masque"] in args
+    assert ["--profile", installation.engine_profile, "--verbose", "remove", "curse:masque"] in args
 
 
 async def test_unmanaged_addons_are_never_modified(tmp_path: Path, make_adapter, installation):

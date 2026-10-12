@@ -1,4 +1,4 @@
-import { ButtonItem, PanelSection, PanelSectionRow, Spinner, TextField } from "@decky/ui";
+import { ButtonItem, DialogButton, DialogCheckbox, PanelSection, PanelSectionRow, Spinner, TextField } from "@decky/ui";
 import { FC, useMemo, useState } from "react";
 
 import { AddonRow } from "../components/AddonRow";
@@ -13,8 +13,12 @@ const GROUP: React.CSSProperties = {
 export const SearchView: FC = () => {
   const plugin = usePlugin();
   const [query, setQuery] = useState("");
+  const [excludedSources, setExcludedSources] = useState<Set<string>>(new Set());
+  const [setupSource, setSetupSource] = useState<string | null>(null);
+  const sourceAvailable = (provider: typeof plugin.providers[number]) => Boolean(provider.searchAvailable && provider.state !== "degraded");
+  const selectedSources = plugin.providers.filter((provider) => sourceAvailable(provider) && !excludedSources.has(provider.id)).map((provider) => provider.id);
 
-  const results = plugin.search?.results ?? [];
+  const results = (plugin.search?.results ?? []).filter((addon) => selectedSources.includes(addon.provider));
   const installedIds = useMemo(
     () => new Set((plugin.installed?.addons ?? []).map((addon) => addon.id)),
     [plugin.installed],
@@ -31,24 +35,61 @@ export const SearchView: FC = () => {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [results]);
 
-  const submit = () => void plugin.runSearch(query);
+  const submit = () => void plugin.runSearch(query, selectedSources);
 
   return (
     <>
       <PanelSection title="Find addons">
         <PanelSectionRow>
           <TextField
-            label="Search every compatible source"
-            description="CurseForge, GitHub, Wago, TukUI and more, depending on what is configured."
+            label="Search addons"
+            description="Search checked sources for your selected game version."
             disabled={plugin.busy !== null}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
           />
         </PanelSectionRow>
         <PanelSectionRow>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: "8px", marginBlock: "8px" }}>
+            {plugin.providers.map((provider) => {
+              const available = sourceAvailable(provider);
+              return (
+                <div key={provider.id} style={{ padding: "8px", minWidth: 0, borderRadius: "6px", background: available ? "rgba(103,165,235,0.12)" : "rgba(255,255,255,0.04)" }}>
+                  <DialogCheckbox
+                    controlled
+                    checked={available && !excludedSources.has(provider.id)}
+                    disabled={!available || plugin.searching}
+                    label={provider.displayName}
+                    description={available ? "Search this source" : "Unavailable"}
+                    onChange={(checked) => {
+                      setExcludedSources((previous) => {
+                        const next = new Set(previous);
+                        if (checked) next.delete(provider.id); else next.add(provider.id);
+                        return next;
+                      });
+                      plugin.clearSearch();
+                    }}
+                  />
+                  {!available ? (
+                    <DialogButton style={{ width: "auto", minWidth: 0, padding: "4px 8px", marginTop: "6px" }} onClick={() => setSetupSource(setupSource === provider.id ? null : provider.id)}>
+                      {setupSource === provider.id ? "Hide help" : provider.setupInstructions ? "Set up" : "Why unavailable?"}
+                    </DialogButton>
+                  ) : null}
+                  {setupSource === provider.id ? (
+                    <div style={{ marginTop: "8px", fontSize: "12px", lineHeight: "1.5", overflowWrap: "anywhere" }}>
+                      {provider.setupInstructions || provider.detail || provider.message || "Check source status in Settings and retry."}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+          {selectedSources.length === 0 ? <div style={{ fontSize: "12px", opacity: 0.7 }}>Check an available source to search.</div> : null}
+        </PanelSectionRow>
+        <PanelSectionRow>
           <ButtonItem
             layout="below"
-            disabled={plugin.busy !== null || plugin.searching || query.trim().length === 0}
+            disabled={plugin.busy !== null || plugin.searching || query.trim().length === 0 || selectedSources.length === 0}
             onClick={submit}
           >
             {plugin.searching ? "Searching…" : "Search"}
@@ -62,37 +103,6 @@ export const SearchView: FC = () => {
           </PanelSectionRow>
         ) : null}
       </PanelSection>
-
-      {plugin.providers.length > 0 ? (
-        <PanelSection title="Addon sources">
-          <PanelSectionRow>
-            <div style={{ fontSize: "12px", lineHeight: "1.5", opacity: 0.75, marginBottom: "8px" }}>
-              Search can find addons before their download source is configured.
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: "8px 20px" }}>
-              {plugin.providers.map((provider) => (
-                <div
-                  key={provider.id}
-                  style={{ minWidth: 0, fontSize: "12px", lineHeight: "1.5" }}
-                >
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 8px" }}>
-                    <strong>{provider.displayName}</strong>
-                    <span style={{ opacity: 0.7 }}>
-                      {provider.available ? "Connected" : provider.state === "engine-backed" ? "Download support" : provider.state === "not-configured" ? "Credentials needed" : provider.state === "degraded" ? "Connection problem" : "Unavailable"}
-                    </span>
-                  </div>
-                  <div style={{ opacity: 0.65, overflowWrap: "anywhere" }}>
-                    {provider.available
-                      ? provider.capabilities.search ? "Search and downloads available." : "Projects available through addon search."
-                      : provider.state === "not-configured" ? "API credentials may be needed for downloads."
-                      : provider.detail ?? provider.message}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </PanelSectionRow>
-        </PanelSection>
-      ) : null}
 
       {plugin.searching ? (
         <PanelSection>

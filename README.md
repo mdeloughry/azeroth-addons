@@ -102,10 +102,16 @@ and referenced by `plugin.json`'s `publish.image`.*
 **Finding something new**
 
 1. Open **Find Addons**.
-2. Type a name and press **Search**.
+2. Check the sources you want to search, type a name and press **Search**.
 3. Results are grouped by source (CurseForge, GitHub, Wago, TukUI, ...).
 4. Press **Install**. Installs always run through the addon engine, never from
    the UI.
+
+Unavailable sources are greyed out and unchecked. Press **Set up** next to one
+to see its credential requirements or manual installation instructions.
+Unconfigured download sources do not contribute search results, and selecting
+no sources disables search. CurseForge needs a key for engine downloads even
+when the optional direct API provider is disabled.
 
 Name search reads instawow's public structured catalogue, filtered to the
 selected game version, alongside enabled direct providers. It does not open

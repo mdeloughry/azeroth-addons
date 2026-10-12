@@ -108,8 +108,8 @@ export const api = {
     rpc<[string, boolean], InstalledPayload>("get_installed_addons", installationId, refresh),
   reconcileAddons: (installationId: string) => rpc<[string], InstalledPayload>("reconcile_addons", installationId),
   checkUpdates: (installationId: string) => rpc<[string], UpdatesPayload>("check_updates", installationId),
-  searchAddons: (installationId: string, query: string, limit = 25) =>
-    rpc<[string, string, number], SearchPayload>("search_addons", installationId, query, limit),
+  searchAddons: (installationId: string, query: string, limit = 25, providerIds: string[] | null = null) =>
+    rpc<[string, string, number, string[] | null], SearchPayload>("search_addons", installationId, query, limit, providerIds),
   installAddon: (installationId: string, provider: string, providerId: string, replace = false) =>
     rpc<[string, string, string, boolean], { installationId: string; addon: Addon }>(
       "install_addon",

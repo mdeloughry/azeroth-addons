@@ -57,13 +57,15 @@ class CatalogueSearch:
             self._loaded_at = time.monotonic()
             return self._entries
 
-    async def search(self, query: str, *, flavour: str | None, limit: int = 25) -> list[dict[str, Any]]:
+    async def search(self, query: str, *, flavour: str | None, limit: int = 25, sources: set[str] | None = None) -> list[dict[str, Any]]:
         needle = _normalise(query)
         if not needle or limit <= 0:
             return []
         entries = await self._load()
         matches: list[tuple[float, str, dict[str, Any]]] = []
         for entry in entries:
+            if sources is not None and entry["source"] not in sources:
+                continue
             if flavour not in entry["game_flavours"]:
                 continue
             name = _normalise(entry["name"])

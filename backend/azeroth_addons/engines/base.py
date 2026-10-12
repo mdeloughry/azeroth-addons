@@ -93,6 +93,14 @@ class AddonEngine(ABC):
     engine_id: str = "engine"
     display_name: str = "Engine"
 
+    def source_access(self, provider: str) -> dict[str, Any]:
+        """Download/search eligibility and user-facing setup instructions."""
+        return {"downloadAvailable": self.capabilities().install, "searchAvailable": self.capabilities().search, "setupInstructions": ""}
+
+    async def search_sources(self, installation: WowInstallation, query: str, *, provider_ids: Sequence[str] | None, limit: int = 25) -> list[Addon]:
+        addons = await self.search(installation, query, limit=limit)
+        return [addon for addon in addons if provider_ids is None or addon.provider in provider_ids]
+
     # --- lifecycle ---------------------------------------------------------
 
     @abstractmethod

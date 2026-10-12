@@ -66,7 +66,7 @@ export interface PluginState {
   removeAddon: (addonId: string) => Promise<void>;
   rollbackAddon: (addonId: string) => Promise<void>;
   installAddon: (provider: string, providerId: string, replace?: boolean) => Promise<void>;
-  runSearch: (query: string) => Promise<void>;
+  runSearch: (query: string, providerIds?: string[]) => Promise<void>;
   clearSearch: () => void;
   rescan: () => Promise<void>;
   addCustomInstallation: (path: string) => Promise<number>;
@@ -379,7 +379,7 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
   );
 
   const runSearch = useCallback(
-    async (query: string) => {
+    async (query: string, providerIds?: string[]) => {
       const installationId = selectedRef.current;
       if (!installationId) return;
       const clean = query.trim();
@@ -390,7 +390,7 @@ export const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setSearching(true);
       setError(null);
       try {
-        const payload = await api.searchAddons(installationId, clean);
+        const payload = await api.searchAddons(installationId, clean, 25, providerIds ?? null);
         if (selectedRef.current !== installationId) return;
         setSearch(payload);
       } catch (cause) {

@@ -59,6 +59,20 @@ async def test_installed_is_cached_until_invalidated(service_stack, addon_factor
     assert sum(1 for call in engine.calls if call[0] == "reconcile") == reconciles + 1
 
 
+async def test_install_refuses_unconfigured_download_source_before_engine_run(service_stack):
+    class GatedEngine(FakeEngine):
+        def source_access(self, provider):
+            return {"downloadAvailable": False, "searchAvailable": False, "setupInstructions": "Add an API key."}
+
+    engine = GatedEngine()
+    registered = service_stack(engine=engine)
+    with pytest.raises(AzerothAddonsError) as error:
+        await registered.service.install(registered.installation.id, "curseforge", "spoken-player")
+    assert error.value.code == "PROVIDER_UNAVAILABLE"
+    assert error.value.details == "Add an API key."
+    assert not any(call[0] == "install" for call in engine.calls)
+
+
 async def test_installed_skips_reconcile_when_unsupported(service_stack, addon_factory):
     engine = FakeEngine(
         addons=[addon_factory("curseforge", "masque")],

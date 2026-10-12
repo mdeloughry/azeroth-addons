@@ -281,6 +281,20 @@ loads host-maintained CA bundles. This addresses embedded Python builds whose
 OpenSSL default paths point at a build-machine prefix. Certificate and hostname
 verification remain enabled. Device verification is still required.
 
+### Source selection and install correction (v0.1.6)
+
+Controller-friendly source checkboxes select both engine catalogue results and
+direct searches. Credential-gated sources are disabled, excluded from results,
+and rejected at the install RPC before invoking the engine. Setup/manual-install
+guidance is shown only when the user opens help for that source. Catalogue source
+filters run before result ranking and limits.
+
+GlitchTip issues 5 and 6 recorded the same `prompt_toolkit` progress renderer
+failure (`PermissionError` followed by `EOFError`) for CurseForge and GitHub
+installs on v0.1.5. All engine calls now pass global `--verbose`: the pinned
+instawow 7.2.1 implementation disables terminal progress rendering when verbosity
+is positive. Device installation retries remain required to verify the fix.
+
 ---
 
 ## Error tracking (added after the MVP)

@@ -1,6 +1,6 @@
 {
   "name": "azeroth-addons",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Controller-first World of Warcraft addon manager for SteamOS Gaming Mode.",
   "type": "module",
   "private": true,

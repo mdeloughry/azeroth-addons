@@ -154,3 +154,29 @@ async def test_empty_query_returns_nothing(wired):
     payload = await registered.search.search(wired.installation.id, "   ")
     assert payload["results"] == []
     assert payload["query"] == ""
+
+
+async def test_unchecked_sources_are_not_searched(wired):
+    github = StubProvider("github", results=[_addon("github", "owner/repo")])
+    registered = wired(engine=FakeEngine(search_results=[_addon("curseforge", "spoken")]), providers=[github])
+    payload = await registered.search.search(wired.installation.id, "spoken", provider_ids=[])
+    assert payload["results"] == []
+    assert github.queries == []
+    assert not any(call[0] == "search" for call in registered.engines.get().calls)
+
+
+async def test_selected_source_filters_engine_and_direct_results(wired):
+    github = StubProvider("github", results=[_addon("github", "owner/repo")])
+    registered = wired(engine=FakeEngine(search_results=[_addon("curseforge", "spoken"), _addon("github", "owner/another")]), providers=[github])
+    payload = await registered.search.search(wired.installation.id, "spoken", provider_ids=["github"])
+    assert {addon["provider"] for addon in payload["results"]} == {"github"}
+
+
+async def test_unconfigured_download_source_is_hidden(wired):
+    class GatedEngine(FakeEngine):
+        def source_access(self, provider):
+            return {"searchAvailable": provider != "curseforge", "downloadAvailable": provider != "curseforge", "setupInstructions": "Add key"}
+
+    registered = wired(engine=GatedEngine(search_results=[_addon("curseforge", "spoken"), _addon("github", "owner/repo")]))
+    payload = await registered.search.search(wired.installation.id, "spoken")
+    assert {addon["provider"] for addon in payload["results"]} == {"github"}

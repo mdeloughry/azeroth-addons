@@ -91,6 +91,11 @@ TOKEN_ENV_SUFFIX: dict[str, str] = {
     "wowinterface": "WOWI",
 }
 
+SOURCE_SETUP = {
+    "curseforge": "Add an approved CurseForge API key in Settings → credentials to enable downloads. Alternatively, open the addon's CurseForge page, download the ZIP for your game version, and extract its addon folders into that installation's Interface/AddOns folder. Rescan afterward; manually installed addons stay unmanaged.",
+    "wago": "Add a Wago access token in Settings → credentials for downloads. Wago is not included in name search; use its addon website to find and download addons for your game version.",
+}
+
 # Actions that must not run while the game is open.
 MUTATING_OPERATIONS = frozenset({"install", "update", "remove", "rollback", "update_all"})
 
@@ -381,6 +386,9 @@ class InstawowAdapter:
         argv = [str(self.binary)]
         if profile:
             argv.extend(["--profile", profile])
+        # In 7.2.1, verbosity > 0 disables prompt_toolkit progress bars.
+        # Their stdin reader crashes on Decky's /dev/null subprocess input.
+        argv.append("--verbose")
         argv.extend(str(arg) for arg in args)
 
         started = time.monotonic()
@@ -601,9 +609,9 @@ class InstawowAdapter:
         )
 
     async def search(
-        self, profile: str, query: str, *, flavour: str | None, limit: int = 25
+        self, profile: str, query: str, *, flavour: str | None, limit: int = 25, sources: set[str] | None = None
     ) -> list[dict[str, Any]]:
-        return await self._catalogue.search(query, flavour=flavour, limit=limit)
+        return await self._catalogue.search(query, flavour=flavour, limit=limit, sources=sources)
 
     def failure(self, result: RunResult, code: str, message: str, **context: Any) -> AzerothAddonsError:
         """Build a structured error from a failed engine invocation.
@@ -660,6 +668,17 @@ class InstawowEngine(AddonEngine):
         self._prepare_lock = asyncio.Lock()
 
     # --- lifecycle ---------------------------------------------------------
+
+    def source_access(self, provider: str) -> dict[str, Any]:
+        instructions = SOURCE_SETUP.get(provider, "")
+        suffix = TOKEN_ENV_SUFFIX.get(provider)
+        configured = bool(suffix and self._adapter.environment().get(f"INSTAWOW_ACCESS_TOKENS_{suffix}"))
+        downloadable = provider in PROVIDER_TO_SOURCE and (not instructions or configured)
+        return {
+            "downloadAvailable": downloadable,
+            "searchAvailable": downloadable and provider in {"curseforge", "github", "tukui", "wowinterface"},
+            "setupInstructions": instructions,
+        }
 
     def capabilities(self) -> EngineCapabilities:
         rollback = bool(self._settings.get("enableExperimentalRollback", False)) if self._settings else False
@@ -1094,12 +1113,19 @@ class InstawowEngine(AddonEngine):
 
     # --- discovery ---------------------------------------------------------
 
-    async def search(self, installation: WowInstallation, query: str, *, limit: int = 25) -> list[Addon]:
+    async def search_sources(self, installation: WowInstallation, query: str, *, provider_ids: Sequence[str] | None, limit: int = 25) -> list[Addon]:
+        selected = provider_ids if provider_ids is not None else list(PROVIDER_TO_SOURCE)
+        sources = {PROVIDER_TO_SOURCE[provider] for provider in selected if provider in PROVIDER_TO_SOURCE and self.source_access(provider)["searchAvailable"]}
+        if not sources:
+            return []
+        return await self.search(installation, query, limit=limit, sources=sources)
+
+    async def search(self, installation: WowInstallation, query: str, *, limit: int = 25, sources: set[str] | None = None) -> list[Addon]:
         await self._require_ready()
         profile = self._profile(installation)
         await self.ensure_profile(installation)
         results = await self._adapter.search(
-            profile, query, flavour=installation.instawow_flavour, limit=limit
+            profile, query, flavour=installation.instawow_flavour, limit=limit, sources=sources
         )
         addons: list[Addon] = []
         for entry in results:

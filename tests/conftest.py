@@ -134,8 +134,13 @@ if log_path:
     with open(log_path, "a") as handle:
         handle.write(json.dumps({"args": args, "env_home": os.environ.get("INSTAWOW_HOME")}) + "\\n")
 
-while args and args[0] in ("--profile", "-p"):
-    args = args[2:]
+while args:
+    if args[0] in ("--profile", "-p"):
+        args = args[2:]
+    elif args[0] in ("--verbose", "-v"):
+        args = args[1:]
+    else:
+        break
 
 key = " ".join(args)
 entry = spec.get(key)

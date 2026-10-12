@@ -19,6 +19,7 @@ from ..engines.registry import EngineRegistry
 from ..errors import (
     ADDON_NOT_FOUND,
     ENGINE_UNSUPPORTED,
+    PROVIDER_UNAVAILABLE,
     WOW_RUNNING,
     AzerothAddonsError,
 )
@@ -139,7 +140,7 @@ class AddonService:
         return [status.to_dict() for status in await self._engines.statuses()]
 
     async def provider_statuses(self) -> list[dict[str, Any]]:
-        return [status.to_dict() for status in await self._providers.statuses()]
+        return [status.to_dict() | self._engine().source_access(status.provider_id) for status in await self._providers.statuses()]
 
     def runtime_status(self, engine_status: EngineStatus | None = None) -> dict[str, Any]:
         return {
@@ -255,6 +256,14 @@ class AddonService:
                 "The addon engine cannot install addons.",
                 installation_id=installation.id,
                 provider=provider,
+            )
+        access = engine.source_access(provider)
+        if not access["downloadAvailable"]:
+            raise AzerothAddonsError(
+                PROVIDER_UNAVAILABLE,
+                "This download source is not configured.",
+                provider=provider,
+                details=access["setupInstructions"],
             )
         await self._progress(installation, "install", phase="start", message=f"Installing {provider_id}…")
         try:

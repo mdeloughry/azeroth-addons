@@ -63,12 +63,15 @@ class AddonSearchService:
         jobs: list[tuple[str, Awaitable[list[Addon]]]] = []
 
         engine = self._engines.get_or_none()
-        if engine is not None and engine.capabilities().search:
+        wanted = set(provider_ids) if provider_ids is not None else None
+        if engine is not None and engine.capabilities().search and (wanted is None or any(engine.source_access(provider)["searchAvailable"] for provider in wanted)):
             status = await engine.status()
             if status.available:
-                jobs.append((engine.engine_id, engine.search(installation, clean, limit=limit)))
+                jobs.append((engine.engine_id, engine.search_sources(installation, clean, provider_ids=provider_ids, limit=limit)))
 
         for provider in self._searchable_providers(provider_ids):
+            if engine is not None and not engine.source_access(provider.provider_id)["searchAvailable"]:
+                continue
             jobs.append((provider.provider_id, provider.search(clean, flavour=installation.flavour, limit=limit)))
 
         results: list[Addon] = []
@@ -94,6 +97,8 @@ class AddonSearchService:
                 sources.append(source_id)
                 results.extend(outcome)
 
+        results = [addon for addon in results if (wanted is None or addon.provider in wanted)
+                   and (engine is None or engine.source_access(addon.provider)["searchAvailable"])]
         deduped = self._dedupe(results)
         self._annotate_installed(deduped, await self._safe_installed(installation.id))
         # Preserve source relevance ordering so core addons are not buried
@@ -119,7 +124,7 @@ class AddonSearchService:
 
     def _searchable_providers(self, provider_ids: Sequence[str] | None) -> list[AddonProvider]:
         providers = self._providers.all()
-        if provider_ids:
+        if provider_ids is not None:
             wanted = set(provider_ids)
             providers = [provider for provider in providers if provider.provider_id in wanted]
         return [

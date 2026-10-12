@@ -64,6 +64,15 @@ async def test_exact_matches_rank_first_and_limit_is_respected(monkeypatch):
     assert [result["name"] for result in results] == ["Spoken Player"]
 
 
+async def test_source_filter_applies_before_result_limit(monkeypatch):
+    async def fetch(*args, **kwargs):
+        return {"version": 8, "entries": [entry(), entry(source="github", name="Spoken GitHub")]}
+
+    monkeypatch.setattr("azeroth_addons.engines.catalogue.fetch_json", fetch)
+    results = await CatalogueSearch().search("spoken", flavour="forever_classic", limit=1, sources={"github"})
+    assert [result["source"] for result in results] == ["github"]
+
+
 async def test_spoken_core_bundle_is_not_buried_by_audio_translations(monkeypatch):
     async def fetch(*args, **kwargs):
         return {"version": 8, "entries": [

@@ -241,8 +241,10 @@ class Plugin:
         return await self._ctx().service.check_updates(installation_id)
 
     @rpc
-    async def search_addons(self, installation_id: str, query: str, limit: int = 25) -> dict[str, Any]:
-        return await self._ctx().search.search(installation_id, query, limit=int(limit or 25))
+    async def search_addons(self, installation_id: str, query: str, limit: int = 25, provider_ids: list[str] | None = None) -> dict[str, Any]:
+        if provider_ids is not None and (not isinstance(provider_ids, list) or not all(isinstance(value, str) for value in provider_ids)):
+            raise AzerothAddonsError(INVALID_ARGUMENT, "Select valid addon sources.")
+        return await self._ctx().search.search(installation_id, query, limit=int(limit or 25), provider_ids=provider_ids)
 
     @rpc
     async def install_addon(
