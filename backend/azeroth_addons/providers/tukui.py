@@ -70,7 +70,7 @@ class TukUIProvider(AddonProvider):
             status.available = False
             status.state = "degraded"
             status.message = "TukUI could not be reached."
-            status.detail = str(exc)
+            status.detail = getattr(exc, "details", None) or str(exc)
         return status
 
     async def get_addon(self, provider_id: str) -> Addon | None:

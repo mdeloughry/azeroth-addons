@@ -267,6 +267,20 @@ deviations recorded below.
    against the real engine, to confirm the tolerant parsers match upstream
    output. The parsers log a warning if the shape drifts.
 
+### Search and HTTPS correction (12 October 2026)
+
+The pinned engine's `search` command is an interactive install picker, not a
+machine-readable search endpoint. Decky's subprocess has no terminal, so search
+now reads the same public v8 structured catalogue directly, with exact engine
+flavour filtering and an in-memory four-hour cache. Installs still use the
+engine. GitHub remains an independent direct search provider. The public
+catalogue contains WoWInterface and TukUI projects but currently no Wago entries.
+
+Source and reporting HTTPS clients now share a verified SSL context which also
+loads host-maintained CA bundles. This addresses embedded Python builds whose
+OpenSSL default paths point at a build-machine prefix. Certificate and hostname
+verification remain enabled. Device verification is still required.
+
 ---
 
 ## Error tracking (added after the MVP)

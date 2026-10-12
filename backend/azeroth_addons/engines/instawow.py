@@ -41,7 +41,6 @@ from ..errors import (
     PROVIDER_UNAVAILABLE,
     REMOVE_FAILED,
     ROLLBACK_FAILED,
-    SEARCH_FAILED,
     UPDATE_FAILED,
     AzerothAddonsError,
     error_from_process_failure,
@@ -63,6 +62,7 @@ from .base import (
     EngineStatus,
     ReconcileResult,
 )
+from .catalogue import CatalogueSearch
 
 logger = get_logger()
 
@@ -333,6 +333,7 @@ class InstawowAdapter:
         self.home = Path(home_dir)
         self._token_provider = token_provider or (lambda: {})
         self.base_timeout = base_timeout
+        self._catalogue = CatalogueSearch()
 
     # --- bootstrap ---------------------------------------------------------
 
@@ -598,12 +599,10 @@ class InstawowAdapter:
             stdin=f"{choice}\n",
         )
 
-    async def search(self, profile: str, query: str, *, limit: int = 25) -> RunResult:
-        return await self.run(
-            ["search", query, "--limit", str(max(1, limit))],
-            profile=profile,
-            timeout=180.0,
-        )
+    async def search(
+        self, profile: str, query: str, *, flavour: str | None, limit: int = 25
+    ) -> list[dict[str, Any]]:
+        return await self._catalogue.search(query, flavour=flavour, limit=limit)
 
     def failure(self, result: RunResult, code: str, message: str, **context: Any) -> AzerothAddonsError:
         """Build a structured error from a failed engine invocation.
@@ -1098,22 +1097,19 @@ class InstawowEngine(AddonEngine):
         await self._require_ready()
         profile = self._profile(installation)
         await self.ensure_profile(installation)
-        result = await self._adapter.search(profile, query, limit=limit)
-        if not result.ok:
-            raise self._adapter.failure(
-                result,
-                SEARCH_FAILED,
-                "The addon engine could not run that search.",
-                installation_id=installation.id,
-            )
+        results = await self._adapter.search(
+            profile, query, flavour=installation.instawow_flavour, limit=limit
+        )
         addons: list[Addon] = []
-        for source, ident, name in parse_search_results(result.combined):
-            addons.append(
-                addon_from_engine(
-                    provider=source_to_provider(source),
-                    provider_id=ident,
-                    version=None,
-                    name=name or ident,
-                )
+        for entry in results:
+            if entry["source"] not in SOURCE_TO_PROVIDER:
+                continue
+            addon = addon_from_engine(
+                provider=source_to_provider(entry["source"]),
+                provider_id=entry.get("slug") or entry["id"],
+                version=None,
+                name=entry["name"],
             )
+            addon.homepage = entry.get("url")
+            addons.append(addon)
         return addons

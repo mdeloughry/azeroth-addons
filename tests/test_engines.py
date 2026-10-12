@@ -509,20 +509,24 @@ async def test_reconcile_survives_a_failing_reconcile_command(
     assert result.managed == []
 
 
-async def test_search_maps_results_to_providers(tmp_path: Path, make_adapter, write_spec, installation):
-    write_spec(
-        **{
-            "search details --limit 25": {
-                "code": 0,
-                "stdout": "Details! Damage Meter   curse:details\nUnattributable Result\n",
-            }
-        }
-    )
+async def test_search_maps_results_to_providers(tmp_path: Path, make_adapter, write_spec, installation, monkeypatch):
+    async def fetch(*args, **kwargs):
+        return {"version": 8, "entries": [{
+            "source": "curse", "id": "123", "slug": "details", "name": "Details! Damage Meter",
+            "game_flavours": [installation.instawow_flavour],
+            "url": "https://www.curseforge.com/wow/addons/details",
+        }]}
+
+    monkeypatch.setattr("azeroth_addons.engines.catalogue.fetch_json", fetch)
+    # The old CLI picker must never run: it can fail without a TTY, or install
+    # addons as a side effect of a supposedly read-only search.
+    write_spec(**{"search details --limit 25": {"code": 1, "stderr": "EOFError"}})
     engine = make_engine(make_adapter(), tmp_path)
     results = await engine.search(installation, "details")
     assert [(addon.provider, addon.provider_id, addon.name) for addon in results] == [
         ("curseforge", "details", "Details! Damage Meter")
     ]
+    assert results[0].homepage == "https://www.curseforge.com/wow/addons/details"
 
 
 async def test_profile_status_reports_validation(tmp_path: Path, make_adapter, write_spec, installation):

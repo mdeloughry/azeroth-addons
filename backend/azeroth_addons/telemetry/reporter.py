@@ -36,6 +36,7 @@ from typing import Any, Callable, Mapping
 
 from .. import __version__
 from ..logctx import get_logger
+from ..networking import create_ssl_context
 from ..settings import SettingsStore
 from .journal import SOURCE_BACKEND, ErrorEvent
 from .privacy import scrub_mapping
@@ -294,7 +295,7 @@ class ErrorReporter:
         for key, value in headers.items():
             request.add_header(key, value)
         # The destination is never logged: a DSN or webhook path may be secret.
-        with urllib.request.urlopen(request, timeout=self._timeout) as response:  # noqa: S310 - user-configured destination
+        with urllib.request.urlopen(request, timeout=self._timeout, context=create_ssl_context()) as response:  # noqa: S310 - user-configured destination
             response.read(MAX_RESPONSE_BYTES)
             return int(response.status)
 

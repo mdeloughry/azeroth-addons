@@ -14,6 +14,7 @@ import urllib.request
 from typing import Any, Mapping
 
 from .. import __version__
+from ..networking import create_ssl_context
 from ..errors import (
     ADDON_NOT_FOUND,
     DOWNLOAD_FAILED,
@@ -56,7 +57,7 @@ def _perform(
     request.add_header("Accept", "application/json")
     for key, value in headers.items():
         request.add_header(key, value)
-    with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - provider URLs are configured constants
+    with urllib.request.urlopen(request, timeout=timeout, context=create_ssl_context()) as response:  # noqa: S310 - provider URLs are configured constants
         payload = response.read(max_bytes + 1)
         if len(payload) > max_bytes:
             raise AzerothAddonsError(

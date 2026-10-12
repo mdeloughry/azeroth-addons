@@ -97,6 +97,11 @@ export const SearchView: FC = () => {
             <PanelSectionRow key={failure.source}>
               <div style={{ fontSize: "12px" }}>
                 <strong>{failure.source}</strong>: {failure.error.message}
+                {failure.error.details ? (
+                  <div style={{ marginTop: "4px", overflowWrap: "anywhere" }}>
+                    {failure.error.code}: {failure.error.details}
+                  </div>
+                ) : null}
               </div>
             </PanelSectionRow>
           ))}

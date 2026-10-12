@@ -49,8 +49,8 @@ class WagoProvider(AddonProvider):
             capabilities=self.capabilities(),
             message="Installs via the bundled engine.",
             detail=(
-                "Wago has no supported third-party search API, so browsing is handled by the "
-                "bundled engine using wago: identifiers."
+                "Wago has no entries in the public addon catalogue. "
+                "Downloads require a Wago token and a known wago: identifier."
             ),
         )
 

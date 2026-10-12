@@ -107,6 +107,12 @@ and referenced by `plugin.json`'s `publish.image`.*
 4. Press **Install**. Installs always run through the addon engine, never from
    the UI.
 
+Name search reads instawow's public structured catalogue, filtered to the
+selected game version, alongside enabled direct providers. It does not open
+instawow's terminal install picker. The public catalogue currently has no Wago
+entries. Spoken Player and Spoken Everything are listed for Forever and Classic
+variants, so they will not appear when Retail is selected.
+
 **Adding an installation**
 
 1. Open **Installations** → **Add installation**.
@@ -350,6 +356,7 @@ Run this once on hardware after installing:
 | A source is `degraded` | Upstream problem or rate limit | Other sources keep working; add a credential to raise limits |
 | `ENGINE_UNSUPPORTED` on Rollback | Rollback is interactive in the engine | Enable **Experimental rollback** in Settings |
 | Something failed and you are unsure why | The journal has the answer | **Diagnostics** tab → expand the event |
+| `CERTIFICATE_VERIFY_FAILED` on sources or reporting | Embedded Python cannot find trusted CA roots, or the server chain/device clock is wrong | Plugin loads the SteamOS system CA bundle; if it still fails, check device time and the server certificate chain |
 
 ---
 

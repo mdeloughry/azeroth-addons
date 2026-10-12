@@ -112,7 +112,7 @@ class GitHubProvider(AddonProvider):
             status.available = False
             status.state = "degraded"
             status.message = "GitHub could not be reached."
-            status.detail = str(exc)
+            status.detail = getattr(exc, "details", None) or str(exc)
             return status
 
         core = (payload or {}).get("resources", {}).get("core", {}) if isinstance(payload, dict) else {}

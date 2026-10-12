@@ -43,8 +43,8 @@ class WowInterfaceProvider(AddonProvider):
             capabilities=self.capabilities(),
             message="Installs via the bundled engine.",
             detail=(
-                "WoWInterface publishes no catalogue API, so browsing is handled by the "
-                "bundled engine using wowi: identifiers (Retail only)."
+                "Search uses instawow's public catalogue; installs use the "
+                "bundled engine with wowi: identifiers (Retail only)."
             ),
         )
 
