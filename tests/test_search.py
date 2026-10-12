@@ -75,6 +75,19 @@ async def test_search_combines_engine_and_providers(wired) -> None:
     assert github.queries == ["details"]  # the query reaches every provider
 
 
+async def test_search_preserves_relevance_order_for_core_addons(wired):
+    addons = [
+        _addon("curseforge", "spoken-player", name="Spoken Player"),
+        _addon("curseforge", "spoken", name="Spoken Everything"),
+        _addon("curseforge", "spoken-books-audio", name="Spoken Books Audio"),
+    ]
+    registered = wired(engine=FakeEngine(search_results=addons))
+    payload = await registered.search.search(wired.installation.id, "spoken")
+    assert [result["providerId"] for result in payload["results"]] == [
+        "spoken-player", "spoken", "spoken-books-audio",
+    ]
+
+
 async def test_search_survives_a_failing_provider(wired):
     registered = wired(
         engine=FakeEngine(search_results=[_addon("curseforge", "masque")]),

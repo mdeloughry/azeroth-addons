@@ -439,6 +439,8 @@ def _addon_from_payload(payload: dict[str, Any]) -> Addon:
         provider=str(payload.get("provider") or ""),
         provider_id=str(payload.get("providerId") or ""),
         description=payload.get("description"),
+        last_updated=payload.get("lastUpdated"),
+        download_count=payload.get("downloadCount"),
         installed_version=payload.get("installedVersion"),
         available_version=payload.get("availableVersion"),
         homepage=payload.get("homepage"),

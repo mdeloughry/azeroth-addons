@@ -46,6 +46,7 @@ from ..errors import (
     error_from_process_failure,
 )
 from ..installations.models import WowInstallation
+from ..installations.flavours import normalise_flavour
 from ..logctx import ctx, get_logger, redact, safe_env
 from ..security import canonical, validate_addons_target
 from ..settings import SettingsStore
@@ -1111,5 +1112,11 @@ class InstawowEngine(AddonEngine):
                 name=entry["name"],
             )
             addon.homepage = entry.get("url")
+            addon.description = entry.get("description") if isinstance(entry.get("description"), str) else None
+            updated = entry.get("last_updated")
+            addon.last_updated = updated if isinstance(updated, str) else None
+            downloads = entry.get("download_count")
+            addon.download_count = downloads if isinstance(downloads, int) and downloads >= 0 else None
+            addon.game_flavours = sorted({normalise_flavour(value) for value in entry["game_flavours"] if isinstance(value, str)} - {"unknown"})
             addons.append(addon)
         return addons

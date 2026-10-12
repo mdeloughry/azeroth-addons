@@ -2,7 +2,6 @@ import { ButtonItem, PanelSection, PanelSectionRow, Spinner, TextField } from "@
 import { FC, useMemo, useState } from "react";
 
 import { AddonRow } from "../components/AddonRow";
-import { ProviderBadge, ProviderStateBadge } from "../components/Badges";
 import { usePlugin } from "../state";
 import { Addon } from "../types";
 
@@ -67,16 +66,28 @@ export const SearchView: FC = () => {
       {plugin.providers.length > 0 ? (
         <PanelSection title="Addon sources">
           <PanelSectionRow>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            <div style={{ fontSize: "12px", lineHeight: "1.5", opacity: 0.75, marginBottom: "8px" }}>
+              Search can find addons before their download source is configured.
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: "8px 20px" }}>
               {plugin.providers.map((provider) => (
-                <span
+                <div
                   key={provider.id}
-                  style={{ display: "inline-flex", gap: "4px", alignItems: "center" }}
-                  title={provider.detail ?? provider.message ?? ""}
+                  style={{ minWidth: 0, fontSize: "12px", lineHeight: "1.5" }}
                 >
-                  <ProviderBadge label={provider.displayName} />
-                  <ProviderStateBadge state={provider.state} />
-                </span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 8px" }}>
+                    <strong>{provider.displayName}</strong>
+                    <span style={{ opacity: 0.7 }}>
+                      {provider.available ? "Connected" : provider.state === "engine-backed" ? "Download support" : provider.state === "not-configured" ? "Credentials needed" : provider.state === "degraded" ? "Connection problem" : "Unavailable"}
+                    </span>
+                  </div>
+                  <div style={{ opacity: 0.65, overflowWrap: "anywhere" }}>
+                    {provider.available
+                      ? provider.capabilities.search ? "Search and downloads available." : "Projects available through addon search."
+                      : provider.state === "not-configured" ? "API credentials may be needed for downloads."
+                      : provider.detail ?? provider.message}
+                  </div>
+                </div>
               ))}
             </div>
           </PanelSectionRow>

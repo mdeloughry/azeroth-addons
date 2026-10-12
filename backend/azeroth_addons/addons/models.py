@@ -67,6 +67,8 @@ class Addon:
     provider: str
     provider_id: str
     description: str | None = None
+    last_updated: str | None = None
+    download_count: int | None = None
     installed_version: str | None = None
     available_version: str | None = None
     homepage: str | None = None
@@ -98,6 +100,7 @@ class Addon:
         }
         optional = {
             "description": self.description,
+            "lastUpdated": self.last_updated,
             "installedVersion": self.installed_version,
             "availableVersion": self.available_version,
             "homepage": self.homepage,
@@ -108,6 +111,8 @@ class Addon:
         for key, value in optional.items():
             if value:
                 payload[key] = value
+        if self.download_count is not None:
+            payload["downloadCount"] = self.download_count
         return payload
 
 

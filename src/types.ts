@@ -34,6 +34,8 @@ export interface Addon {
   gameFlavours: string[];
   pinned: boolean;
   description?: string;
+  lastUpdated?: string;
+  downloadCount?: number;
   installedVersion?: string;
   availableVersion?: string;
   homepage?: string;

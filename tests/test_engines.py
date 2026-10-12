@@ -515,6 +515,8 @@ async def test_search_maps_results_to_providers(tmp_path: Path, make_adapter, wr
             "source": "curse", "id": "123", "slug": "details", "name": "Details! Damage Meter",
             "game_flavours": [installation.instawow_flavour],
             "url": "https://www.curseforge.com/wow/addons/details",
+            "description": "Tracks damage and healing.", "download_count": 0,
+            "last_updated": "2026-10-11T22:41:28+00:00",
         }]}
 
     monkeypatch.setattr("azeroth_addons.engines.catalogue.fetch_json", fetch)
@@ -527,6 +529,11 @@ async def test_search_maps_results_to_providers(tmp_path: Path, make_adapter, wr
         ("curseforge", "details", "Details! Damage Meter")
     ]
     assert results[0].homepage == "https://www.curseforge.com/wow/addons/details"
+    payload = results[0].to_dict()
+    assert payload["description"] == "Tracks damage and healing."
+    assert payload["lastUpdated"] == "2026-10-11T22:41:28+00:00"
+    assert payload["downloadCount"] == 0
+    assert payload["gameFlavours"] == [installation.flavour]
 
 
 async def test_profile_status_reports_validation(tmp_path: Path, make_adapter, write_spec, installation):

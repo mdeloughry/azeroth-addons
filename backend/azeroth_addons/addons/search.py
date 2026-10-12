@@ -96,7 +96,8 @@ class AddonSearchService:
 
         deduped = self._dedupe(results)
         self._annotate_installed(deduped, await self._safe_installed(installation.id))
-        deduped.sort(key=lambda addon: (addon.name.lower(), addon.provider))
+        # Preserve source relevance ordering so core addons are not buried
+        # below alphabetically earlier audio packs or translations.
 
         logger.info(
             "search query=%r results=%d sources=%d failures=%d %s",
