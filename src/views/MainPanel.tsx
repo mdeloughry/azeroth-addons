@@ -1,51 +1,46 @@
-import { ButtonItem, Navigation, PanelSection, PanelSectionRow, Spinner } from "@decky/ui";
-import { FC } from "react";
+import { ButtonItem, DialogButton, Focusable, Navigation, PanelSection, PanelSectionRow, Spinner } from "@decky/ui";
+import { FC, useMemo } from "react";
+import { FaCog, FaSearch } from "react-icons/fa";
 
 import { AddonList } from "../components/AddonRow";
-import { AvailabilityBadge, EngineStateBadge } from "../components/Badges";
-import { OperationStatus } from "../components/OperationStatus";
 import { ReportingNudge } from "../components/ReportingNudge";
-import { ROUTE } from "../routes";
+import { PageTab, TAB_ROUTES } from "../routes";
 import { usePlugin } from "../state";
+import { InstallationSelector } from "./InstallationSelector";
 
-const HEADER: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  padding: "8px 0",
+const ICON: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", justifyContent: "center",
+  width: "36px", minWidth: "36px", height: "36px", padding: 0, margin: 0, flex: "0 0 36px",
 };
 
-const COUNTS: React.CSSProperties = {
-  display: "flex",
-  gap: "12px",
-  fontSize: "12px",
-  opacity: 0.85,
-};
-
-/** The compact Quick Access Menu panel: status, counts, Update All, entry points. */
+/** Quick Access Menu: installed addons first, secondary navigation last. */
 export const MainPanel: FC = () => {
   const plugin = usePlugin();
-  const engine = plugin.status?.engine ?? plugin.engines[0] ?? null;
   const installation = plugin.selected;
-  const counts = plugin.installed?.counts;
-  const updateCount = Math.max(plugin.updates.length, counts?.updates ?? 0);
-  const topUpdates = plugin.updates.slice(0, 5);
+  const engine = plugin.status?.engine ?? plugin.engines[0] ?? null;
+  const busy = plugin.busy !== null;
+  const blocked = busy || !installation?.available || Boolean(plugin.installed?.running);
+  const addons = useMemo(() => {
+    const updates = new Map(plugin.updates.map((addon) => [addon.id.toLowerCase(), addon]));
+    return (plugin.installed?.addons ?? [])
+      .map((addon) => updates.has(addon.id.toLowerCase()) ? { ...addon, ...updates.get(addon.id.toLowerCase()) } : addon)
+      .sort((a, b) => Number(b.state === "update-available") - Number(a.state === "update-available") || a.name.localeCompare(b.name));
+  }, [plugin.installed, plugin.updates]);
+  const updateCount = addons.filter((addon) => addon.state === "update-available").length;
 
-  const open = () => {
-    Navigation.Navigate(ROUTE);
+  const open = (tab: PageTab) => {
+    Navigation.Navigate(TAB_ROUTES[tab]);
     Navigation.CloseSideMenus();
   };
 
   if (plugin.booting && !plugin.status) {
     return (
-      <PanelSection>
-        <PanelSectionRow>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <Spinner style={{ width: "16px", height: "16px" }} />
-            <span>Starting Azeroth Addons…</span>
-          </div>
-        </PanelSectionRow>
-      </PanelSection>
+      <PanelSection><PanelSectionRow>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <Spinner style={{ width: "16px", height: "16px" }} />
+          <span>Loading addons…</span>
+        </div>
+      </PanelSectionRow></PanelSection>
     );
   }
 
@@ -53,88 +48,57 @@ export const MainPanel: FC = () => {
     <>
       <PanelSection>
         <PanelSectionRow>
-          <div style={HEADER}>
-            <span style={{ fontWeight: 700, letterSpacing: "0.08em", fontSize: "13px" }}>AZEROTH ADDONS</span>
-            {engine ? <EngineStateBadge state={engine.state} label={engine.version ?? undefined} /> : null}
-          </div>
+          <Focusable style={{ display: "flex", alignItems: "center", gap: "8px", paddingBlock: "6px" }} flow-children="row">
+            <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+              <div style={{ fontWeight: 600, overflowWrap: "anywhere" }}>{installation?.displayName ?? "Your addons"}</div>
+              {installation ? <div style={{ fontSize: "12px", opacity: 0.7, marginTop: "4px" }}>{addons.length} installed · {updateCount} {updateCount === 1 ? "update" : "updates"}</div> : null}
+            </div>
+            <DialogButton style={ICON} aria-label="Find addons" onOKActionDescription="Find addons" onClick={() => open("find")}>
+              <FaSearch aria-hidden="true" />
+            </DialogButton>
+            <DialogButton style={ICON} aria-label="Settings" onOKActionDescription="Settings" onClick={() => open("settings")}>
+              <FaCog aria-hidden="true" />
+            </DialogButton>
+          </Focusable>
         </PanelSectionRow>
-
-        {installation ? (
-          <PanelSectionRow>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontWeight: 500 }}>{installation.displayName}</span>
-                <AvailabilityBadge available={installation.available} running={plugin.installed?.running} />
-              </div>
-              <div style={{ ...COUNTS, marginTop: "4px" }}>
-                <span>{counts?.installed ?? 0} installed</span>
-                <span style={{ color: updateCount > 0 ? "#f0ad4e" : undefined }}>{updateCount} updates</span>
-              </div>
-            </div>
-          </PanelSectionRow>
-        ) : (
-          <PanelSectionRow>
-            <div style={{ opacity: 0.75, fontSize: "12px" }}>
-              No World of Warcraft installation registered yet.
-            </div>
-          </PanelSectionRow>
-        )}
+        {engine && engine.state !== "ready" ? <PanelSectionRow><div style={{ fontSize: "12px", opacity: 0.75 }}>{engine.message ?? `Addon engine: ${engine.state}`}</div></PanelSectionRow> : null}
+        {installation && (!installation.available || plugin.installed?.running) ? <PanelSectionRow><div style={{ fontSize: "12px", opacity: 0.75 }}>{!installation.available ? "Reconnect this installation’s drive to manage addons." : "Close World of Warcraft to change addons."}</div></PanelSectionRow> : null}
       </PanelSection>
 
-      <ReportingNudge />
-
-      <OperationStatus />
+      {plugin.installations.length > 1 ? <InstallationSelector /> : null}
 
       {installation ? (
-        <PanelSection>
-          <PanelSectionRow>
-            <ButtonItem
-              layout="below"
-              disabled={plugin.busy !== null || !installation.available || updateCount === 0}
-              onClick={() => void plugin.updateAll()}
-            >
+        <>
+          <PanelSection><PanelSectionRow>
+            <ButtonItem layout="below" disabled={blocked || updateCount === 0} onClick={() => void plugin.updateAll()}>
               {updateCount > 0 ? `Update All (${updateCount})` : "Update All"}
             </ButtonItem>
-          </PanelSectionRow>
-          <PanelSectionRow>
-            <ButtonItem layout="below" onClick={open}>
-              Find Addons
-            </ButtonItem>
-          </PanelSectionRow>
-          <PanelSectionRow>
-            <ButtonItem layout="below" onClick={open}>
-              Manage Installations
-            </ButtonItem>
-          </PanelSectionRow>
-        </PanelSection>
+          </PanelSectionRow></PanelSection>
+
+          <AddonList title="Installed addons" addons={addons} compact spinner={plugin.loadingInstalled}
+            actions={{ showUpdate: true, showRemove: true }}
+            emptyMessage="No managed addons yet. Use the search icon to find one." />
+        </>
       ) : (
-        <PanelSection>
-          <PanelSectionRow>
-            <ButtonItem layout="below" disabled={plugin.busy !== null} onClick={() => void plugin.rescan()}>
-              Find World of Warcraft
-            </ButtonItem>
-          </PanelSectionRow>
-          <PanelSectionRow>
-            <ButtonItem layout="below" onClick={open}>
-              Open Azeroth Addons
-            </ButtonItem>
-          </PanelSectionRow>
-        </PanelSection>
+        <PanelSection><PanelSectionRow>
+          <div style={{ fontSize: "12px", opacity: 0.75 }}>Find or add a World of Warcraft installation first.</div>
+        </PanelSectionRow></PanelSection>
       )}
 
-      {topUpdates.length > 0 ? (
-        <AddonList title="Updates available" addons={topUpdates} actions={{ showUpdate: true }} />
-      ) : null}
-
-      {updateCount > topUpdates.length ? (
-        <PanelSection>
-          <PanelSectionRow>
-            <div style={{ fontSize: "11px", opacity: 0.65 }}>
-              +{updateCount - topUpdates.length} more inside Azeroth Addons.
-            </div>
-          </PanelSectionRow>
-        </PanelSection>
-      ) : null}
+      <PanelSection title="More">
+        {installation ? <>
+          <PanelSectionRow><ButtonItem layout="below" disabled={blocked || plugin.checkingUpdates} onClick={() => void plugin.checkUpdates()}>
+            {plugin.checkingUpdates ? "Checking…" : "Check for updates"}
+          </ButtonItem></PanelSectionRow>
+          <PanelSectionRow><ButtonItem layout="below" disabled={busy || plugin.loadingInstalled || !installation.available} onClick={() => void plugin.loadInstalled({ refresh: true })}>
+            {plugin.loadingInstalled ? "Refreshing…" : "Refresh list"}
+          </ButtonItem></PanelSectionRow>
+          <PanelSectionRow><ButtonItem layout="below" onClick={() => open("addons")}>Open addon manager</ButtonItem></PanelSectionRow>
+        </> : <PanelSectionRow><ButtonItem layout="below" disabled={busy} onClick={() => void plugin.rescan()}>Find World of Warcraft</ButtonItem></PanelSectionRow>}
+        <PanelSectionRow><ButtonItem layout="below" onClick={() => open("installations")}>Manage installations</ButtonItem></PanelSectionRow>
+        <PanelSectionRow><ButtonItem layout="below" onClick={() => open("diagnostics")}>Diagnostics</ButtonItem></PanelSectionRow>
+      </PanelSection>
+      <ReportingNudge />
     </>
   );
 };

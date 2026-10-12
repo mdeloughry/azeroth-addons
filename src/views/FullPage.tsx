@@ -4,6 +4,7 @@ import { FC, useEffect, useState } from "react";
 import { Badge } from "../components/Badges";
 import { ReportingNudge } from "../components/ReportingNudge";
 import { setReportingView } from "../reporting";
+import { PageTab } from "../routes";
 import { usePlugin } from "../state";
 import { AddonsView } from "./AddonsView";
 import { DiagnosticsView } from "./DiagnosticsView";
@@ -11,7 +12,7 @@ import { InstallationsView } from "./InstallationsView";
 import { SearchView } from "./SearchView";
 import { SettingsView } from "./SettingsView";
 
-type Tab = "addons" | "find" | "installations" | "settings" | "diagnostics";
+type Tab = PageTab;
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "addons", label: "Addons" },
@@ -56,6 +57,8 @@ export const FullPage: FC<{ initialTab?: Tab }> = ({ initialTab = "addons" }) =>
   const [tab, setTab] = useState<Tab>(initialTab);
   const engine = plugin.status?.engine ?? plugin.engines[0] ?? null;
   const updateCount = Math.max(plugin.updates.length, plugin.installed?.counts.updates ?? 0);
+
+  useEffect(() => setTab(initialTab), [initialTab]);
 
   // Frontend error reports carry the view they happened in.
   useEffect(() => {

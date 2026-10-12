@@ -310,6 +310,12 @@ concurrency and a short cache. The engine still validates actual archive and gam
 compatibility. Expected Steam `User canceled` rejections no longer generate
 frontend error reports; other unhandled rejections remain reported.
 
+The Quick Access Menu now shows one compact installed list, with update targets
+first and update/remove icons per row. Update All sits above it; check, refresh,
+installation management and diagnostics sit below. Search and settings icons
+open dedicated full-page routes with the matching initial tab. The panel no
+longer duplicates update rows or displays healthy engine/version badges.
+
 ---
 
 ## Error tracking (added after the MVP)

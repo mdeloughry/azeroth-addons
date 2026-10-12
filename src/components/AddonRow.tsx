@@ -71,7 +71,8 @@ export const AddonRow: FC<{
   addon: Addon;
   actions?: AddonRowActions;
   disabled?: boolean;
-}> = ({ addon, actions, disabled }) => {
+  compact?: boolean;
+}> = ({ addon, actions, disabled, compact = false }) => {
   const plugin = usePlugin();
   const busy = plugin.busy !== null;
   const blocked = busy || disabled;
@@ -88,10 +89,15 @@ export const AddonRow: FC<{
     : addon.availableVersion ?? "";
 
   return (
-    <div style={ROW} aria-busy={Boolean(active)}>
+    <div style={compact ? { ...ROW, display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: "8px", padding: "10px 0" } : ROW} aria-busy={Boolean(active)}>
       <div style={NAME} title={addon.name}>
         <div style={{ fontWeight: 600, lineHeight: "1.4", whiteSpace: "normal", overflowWrap: "anywhere" }}>{addon.name}</div>
-        {addon.description ? (
+        {compact ? (
+          <div style={{ ...META, marginTop: "4px" }}>
+            {addon.state !== "current" ? <StateBadge state={addon.state} /> : <span style={{ opacity: 0.6 }}>Up to date</span>}
+            {version ? <span style={VERSION}>{version}</span> : null}
+          </div>
+        ) : addon.description ? (
           <div style={{ marginTop: "4px", fontSize: "12px", lineHeight: "1.5", opacity: 0.8, overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}>
             {addon.description}
           </div>
@@ -102,8 +108,8 @@ export const AddonRow: FC<{
         ) : null}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", width: "100%" }}>
-        <div style={META}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", width: compact ? "auto" : "100%" }}>
+        {!compact ? <div style={META}>
           <ProviderBadge label={addon.providerLabel} />
           {actions?.showInstall ? (
             <Badge tone={actions.installed ? "ok" : "muted"}>{actions.installed ? "Installed" : "Not installed"}</Badge>
@@ -115,11 +121,11 @@ export const AddonRow: FC<{
           ) : null}
           {addon.lastUpdated ? <span>Updated {new Date(addon.lastUpdated).toLocaleDateString()}</span> : null}
           {addon.downloadCount !== undefined ? <span>{addon.downloadCount.toLocaleString()} downloads</span> : null}
-        </div>
+        </div> : null}
 
         <Focusable style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
 
-          {addon.homepage ? (
+          {addon.homepage && !compact ? (
             <DialogButton style={ICON_BUTTON} aria-label={`Open page for ${addon.name}`} onOKActionDescription="Open addon page" onClick={() => Navigation.NavigateToExternalWeb(addon.homepage as string)}>
               <FaExternalLinkAlt aria-hidden="true" />
             </DialogButton>
@@ -191,7 +197,8 @@ export const AddonList: FC<{
   actions?: AddonRowActions;
   emptyMessage?: string;
   spinner?: boolean;
-}> = ({ title, addons, actions, emptyMessage, spinner }) => {
+  compact?: boolean;
+}> = ({ title, addons, actions, emptyMessage, spinner, compact = false }) => {
   const plugin = usePlugin();
   const canRollback = useMemo(
     () => plugin.engines.some((engine) => engine.capabilities?.rollback),
@@ -210,9 +217,11 @@ export const AddonList: FC<{
             <AddonRow
               key={addon.id}
               addon={addon}
-              disabled={plugin.selected?.available === false}
+              disabled={plugin.selected?.available === false || Boolean(plugin.installed?.running)}
+              compact={compact}
               actions={{
                 ...actions,
+                showUpdate: Boolean(actions?.showUpdate && (!compact || addon.state === "update-available")),
                 showRollback: Boolean(actions?.showRollback && canRollback),
               }}
             />
