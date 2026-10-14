@@ -18,6 +18,8 @@ Check off only what you tested. Include pass/fail, device/version details and th
 | Fresh install through URL; plugin visible and controller usable | Pending |
 | First-start runtime download, including slow/offline failure recovery | Pending |
 | Upgrade from previous release; credentials/installation settings preserved | Pending |
+| GitHub plugin check/notification; notes, opt-out, offline recovery, manual check | Pending |
+| Plugin update confirmation/cancel/retry; exact ZIP checksum, reload and settings preserved | Pending |
 | Retail, Classic Era, Forever and Classic discovery | Pending |
 | Internal drive, SD/external drive, missing/reconnected drive | Pending |
 | Multiple copies of the same flavour across Proton prefixes | Pending; running detection may be conservative |

@@ -80,6 +80,10 @@ class AddonService:
 
     # --- helpers -----------------------------------------------------------
 
+    def operations_active(self) -> bool:
+        """Used before requesting a plugin reload/update."""
+        return any(lock.locked() for lock in self._locks.values())
+
     async def _fire(self, event: str, payload: Any) -> None:
         try:
             await self._emit(event, payload)

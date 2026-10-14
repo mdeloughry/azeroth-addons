@@ -4,6 +4,7 @@ import { FaCog, FaSearch } from "react-icons/fa";
 
 import { AddonList } from "../components/AddonRow";
 import { ReportingNudge } from "../components/ReportingNudge";
+import { PluginUpdate } from "../components/PluginUpdate";
 import { PageTab, TAB_ROUTES } from "../routes";
 import { usePlugin } from "../state";
 import { InstallationSelector } from "./InstallationSelector";
@@ -66,6 +67,7 @@ export const MainPanel: FC = () => {
       </PanelSection>
 
       {plugin.installations.length > 1 ? <InstallationSelector /> : null}
+      <PluginUpdate compact />
 
       {installation ? (
         <>

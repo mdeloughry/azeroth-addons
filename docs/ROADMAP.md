@@ -3,6 +3,7 @@
 ## GitHub preview release
 
 - [x] Stable release ZIP name and latest-download URL.
+- [x] Automatic GitHub release checks, opt-out/manual checks and checksum-bearing Decky update requests.
 - [x] Read-only inventory and per-installation serialization.
 - [x] Backend/frontend validation, version checks and release notes before publication.
 - [x] Contributor/bug/PR/security documentation and issue forms.

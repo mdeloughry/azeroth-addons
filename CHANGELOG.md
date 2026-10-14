@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.9
+
+- Check GitHub stable releases at startup and hourly while Decky is running; show a compact plugin-update notice and one notification per new version per session.
+- Add plugin version, release notes, manual checks and an automatic-check toggle to Settings.
+- Request the exact versioned ZIP through Decky's installer, with a required SHA-256 checksum and normal installation confirmation. No custom catalogue is needed.
+- Reject prereleases, older versions, unexpected download URLs and packages without a checksum. Recheck the release and active addon/engine work before opening the installer.
+- Add frontend updater regression tests to validation and release checks.
+
+Install this build once through the existing Latest URL to receive future update notices. Updating reloads the plugin; finish addon operations first. Device verification of the Decky installation dialog/reload remains pending.
+
 ## 0.1.8
 
 - Make installed-addon inventory read-only. Refreshing or searching does not run automatic adoption or replace unmanaged addon folders.

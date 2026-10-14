@@ -33,6 +33,7 @@ from .installations.manager import InstallationManager
 from .logctx import get_logger, mask_secret
 from .providers import factory as provider_factory
 from .providers.registry import ProviderRegistry
+from .plugin_updates import PluginUpdates
 from .settings import (
     CREDENTIAL_KEYS,
     SETTABLE_KEYS,
@@ -106,6 +107,7 @@ class AzerothAddonsContext:
 
         self.store = JsonStore(env.settings_dir)
         self.settings = SettingsStore(self.store)
+        self.plugin_updates = PluginUpdates(self.settings)
         self.installations = InstallationManager(InstallationStore(self.store), self.settings)
         self.providers = ProviderRegistry()
         self.engines = EngineRegistry()
@@ -196,6 +198,14 @@ class AzerothAddonsContext:
 
     async def announce_runtime_status(self) -> None:
         await self.emit(events.RUNTIME_STATUS, self.runtime_status())
+
+    # --- plugin updates ----------------------------------------------------
+
+    async def plugin_update_plan(self, expected_version: str) -> dict[str, Any]:
+        await self.plugin_updates.check(force=True)
+        if self.service.operations_active() or (self._prepare_task is not None and not self._prepare_task.done()):
+            raise AzerothAddonsError(NOT_READY, "Wait for addon operations and engine preparation to finish before updating the plugin.")
+        return self.plugin_updates.install_plan(expected_version)
 
     # --- diagnostics -------------------------------------------------------
 

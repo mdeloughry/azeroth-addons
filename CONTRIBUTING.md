@@ -26,6 +26,8 @@ python3 scripts/check-release.py
 
 Unit tests use fixture installations and a fake engine: no WoW installation, API keys or Linux engine binary required. Frontend builds use Steam components supplied by Decky; there is no standalone browser development server. Real controller behavior needs a SteamOS device.
 
+`pnpm run validate` also runs Node's frontend updater tests. They transpile the actual updater module with mocked Decky/React/lifecycle boundaries; they do not prove an actual SteamOS install/reload. The updater's internal Decky transport is isolated in `src/pluginUpdater.ts` and must retain a manual-install fallback.
+
 For a device package, run `./scripts/package-release.sh`, copy the resulting ZIP to your device, then install it through Decky's Developer ZIP installer. The bundled engine is Linux x86-64; it cannot execute on macOS. [Getting started](docs/GETTING_STARTED.md) covers device setup.
 
 ## Code boundaries

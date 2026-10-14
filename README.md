@@ -26,11 +26,26 @@ on first start. No separate pip/engine installation is required on the device.
 https://github.com/mdeloughry/azeroth-addons/releases/latest/download/azeroth-addons.zip
 ```
 
-Repeat this installation to upgrade. Settings/credentials live outside the
-plugin directory; GitHub releases do not provide Decky store update notices.
+Builds before 0.1.9 need this installation repeated once to gain the updater.
+Settings/credentials live outside the plugin directory.
 Developer → Install Plugin from ZIP File and manual extraction are fallback
 options. Full instructions, custom installations, removal and downgrade limits:
 [Getting started](docs/GETTING_STARTED.md).
+
+## Plugin updates
+
+From 0.1.9, Azeroth Addons checks GitHub stable releases at startup and hourly
+while Decky runs. A notification and compact update notice appear for a newer
+version. Settings shows release notes, **Check for plugin updates**, and a
+toggle to disable automatic checks. These controls update the plugin itself;
+the installed-addon list's Update All still updates WoW addons.
+
+Finish addon operations, choose **Update plugin**, then confirm in Decky's
+installer. It downloads the exact versioned ZIP, verifies its SHA-256 and
+reloads the plugin. Installation is user-triggered; no custom catalogue or
+GitHub token is required. If the loader's installer interface is unavailable,
+use the URL/ZIP fallback above. On-device installer/reload verification remains
+in the [beta matrix](docs/BETA_TESTING.md).
 
 ## Use it
 

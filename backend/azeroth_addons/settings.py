@@ -98,6 +98,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "curseForgeServiceUrl": None,
     "sourcePreference": "automatic",
     "autoCheckUpdates": True,
+    "autoCheckPluginUpdates": True,
     # Error reporting is off unless the user turns it on. A built-in destination
     # is used by default; a user-supplied DSN lives in the credential store,
     # never in plain settings.
@@ -118,6 +119,7 @@ SETTABLE_KEYS = frozenset(
         "curseForgeServiceUrl",
         "sourcePreference",
         "autoCheckUpdates",
+        "autoCheckPluginUpdates",
         "enableErrorReporting",
         "errorReportingFormat",
         "errorReportingEndpoint",

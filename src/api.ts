@@ -22,6 +22,8 @@ import {
   ProfileStatus,
   ProviderListPayload,
   ProviderStatus,
+  PluginRelease,
+  PluginUpdateStatus,
   ReportingPayload,
   RuntimeStatus,
   SearchPayload,
@@ -68,6 +70,8 @@ async function rpc<Args extends unknown[], Result>(route: string, ...args: Args)
 }
 
 export const api = {
+  checkPluginUpdate: (force = false) => rpc<[boolean], PluginUpdateStatus>("check_plugin_update", force),
+  preparePluginUpdate: (version: string) => rpc<[string], PluginRelease>("prepare_plugin_update", version),
   // runtime / engines / providers
   getRuntimeStatus: () => rpc<[], RuntimeStatus>("get_runtime_status"),
   prepareEngine: () => rpc<[], EngineStatus>("prepare_engine"),

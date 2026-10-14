@@ -93,6 +93,14 @@ class Plugin:
     # -- runtime / engines / providers --------------------------------------
 
     @rpc
+    async def check_plugin_update(self, force: bool = False) -> dict[str, Any]:
+        return await self._ctx().plugin_updates.check(force=bool(force))
+
+    @rpc
+    async def prepare_plugin_update(self, expected_version: str) -> dict[str, Any]:
+        return await self._ctx().plugin_update_plan(expected_version)
+
+    @rpc
     async def get_runtime_status(self) -> dict[str, Any]:
         return self._ctx().runtime_status()
 

@@ -1,6 +1,6 @@
 {
   "name": "azeroth-addons",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Controller-first World of Warcraft addon manager for SteamOS Gaming Mode.",
   "type": "module",
   "private": true,
@@ -8,7 +8,8 @@
     "build": "rollup -c",
     "watch": "rollup -c -w",
     "typecheck": "tsc --noEmit",
-    "validate": "pnpm run typecheck && pnpm run build"
+    "test:frontend": "node --test tests/frontend/*.test.cjs",
+    "validate": "pnpm run typecheck && pnpm run test:frontend && pnpm run build"
   },
   "dependencies": {
     "@decky/api": "^1.1.3",

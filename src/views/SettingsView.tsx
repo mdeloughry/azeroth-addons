@@ -3,6 +3,7 @@ import { FC, Fragment, useEffect, useState } from "react";
 
 import { api, errorMessage } from "../api";
 import { EngineStateBadge, ProviderStateBadge } from "../components/Badges";
+import { PluginUpdate } from "../components/PluginUpdate";
 import { usePlugin } from "../state";
 import { ProfileStatus } from "../types";
 
@@ -63,6 +64,7 @@ export const SettingsView: FC = () => {
 
   return (
     <>
+      <PluginUpdate />
       <PanelSection title="Addon engine">
         <PanelSectionRow>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>

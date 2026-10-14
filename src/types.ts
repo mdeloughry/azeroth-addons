@@ -295,3 +295,22 @@ export interface SendTestResult {
   result: { sent: boolean; status?: number; reason?: string };
   status: ReportingStatus;
 }
+
+export interface PluginRelease {
+  version: string;
+  tag: string;
+  url: string;
+  assetUrl: string;
+  sha256: string;
+  notes: string;
+}
+
+export interface PluginUpdateStatus {
+  state: "unchecked" | "disabled" | "up-to-date" | "available" | "error";
+  currentVersion: string;
+  automatic: boolean;
+  checkedAt: number | null;
+  release: PluginRelease | null;
+  message: string | null;
+  manualDownloadUrl: string;
+}

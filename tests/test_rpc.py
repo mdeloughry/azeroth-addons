@@ -41,6 +41,48 @@ def build_plugin(tmp_path: Path, monkeypatch, *, engine_binary: Path | None = No
     return module.Plugin()
 
 
+@pytest.mark.asyncio
+async def test_plugin_update_rpc_respects_disabled_checks_and_gates_active_work(tmp_path, monkeypatch):
+    from azeroth_addons import plugin_updates
+    plugin = build_plugin(tmp_path, monkeypatch)
+    calls = []
+    async def fetch(url, limit):
+        calls.append(url)
+        return json.dumps({
+            "draft": False, "prerelease": False, "tag_name": "v9.0.0", "body": "Notes",
+            "assets": [{"name": "azeroth-addons.zip", "state": "uploaded", "digest": "sha256:" + "a" * 64,
+                        "browser_download_url": plugin_updates.RELEASES_URL + "/download/v9.0.0/azeroth-addons.zip"}],
+        }).encode()
+    monkeypatch.setattr(plugin_updates, "fetch_release", fetch)
+    saved = await plugin.set_settings({"autoCheckPluginUpdates": False})
+    assert saved["data"]["values"]["autoCheckPluginUpdates"] is False
+    assert (await plugin.check_plugin_update())["data"]["state"] == "disabled"
+    assert calls == []
+    assert (await plugin.check_plugin_update(True))["data"]["state"] == "available"
+    lock = asyncio.Lock()
+    plugin._ctx().service._locks["test-installation"] = lock
+    await lock.acquire()
+    try:
+        blocked = await plugin.prepare_plugin_update("9.0.0")
+        assert blocked["error"]["code"] == "NOT_READY"
+    finally:
+        lock.release()
+    work = asyncio.create_task(asyncio.sleep(60))
+    plugin._ctx()._prepare_task = work
+    try:
+        assert (await plugin.prepare_plugin_update("9.0.0"))["error"]["code"] == "NOT_READY"
+    finally:
+        work.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await work
+    stale = await plugin.prepare_plugin_update("8.0.0")
+    assert stale["error"]["code"] == "INVALID_ARGUMENT"
+    plan = await plugin.prepare_plugin_update("9.0.0")
+    assert plan["ok"] is True
+    assert plan["data"]["assetUrl"].endswith("/v9.0.0/azeroth-addons.zip")
+    assert plan["data"]["sha256"] == "a" * 64
+
+
 @pytest.fixture
 def plugin(tmp_path: Path, monkeypatch):
     return build_plugin(tmp_path, monkeypatch)

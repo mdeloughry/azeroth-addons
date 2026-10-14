@@ -58,7 +58,13 @@ Open the source website, download a ZIP for your game version, close WoW, and ex
 
 ## Upgrade or remove the plugin
 
-For another published build, repeat the URL or ZIP installation and restart Decky if needed. Plugin settings, credentials and journal are stored separately. Because this is GitHub distribution, do not expect Decky store update notifications.
+From 0.1.9, automatic plugin-update checks use GitHub stable releases at startup and hourly while Decky runs. A notification and slide-out notice appear for a newer version; Settings shows its release notes and an **Update plugin** button. This is separate from updating WoW addons.
+
+Finish addon operations first, choose Update plugin, and confirm in Decky's installer. Opening the dialog does not mean installation has succeeded. Decky downloads the exact versioned ZIP, verifies the required SHA-256 checksum and reloads the plugin. If you cancel, the button becomes available to retry after 30 seconds. Settings, credentials and journal are stored separately.
+
+Settings → **Automatically check for plugin updates** disables future background GitHub checks. Manual **Check for plugin updates** works while automatic checks are off. Each new version gets at most one notification per loaded frontend session. Failed checks retry after at least 15 minutes; addon management remains usable. Only stable releases newer than the installed version with the official ZIP and a valid checksum are offered. No GitHub token is sent by this updater.
+
+The installer bridge uses Decky's internal `utilities/install_plugin` transport, as used by its own frontend; it is not a public `@decky/api` export. Loader changes can affect it. Hardware confirmation/cancellation/reload checks remain pending in the beta matrix. The fallback is to repeat the URL or ZIP installation and restart Decky if needed. Builds before 0.1.9 need that manual upgrade once to gain this updater. Users can keep their existing Decky catalogue.
 
 Uninstall the plugin through Decky's settings. Removing the plugin does not remove WoW addons. To change versions, install a specific release asset; keep current settings backed up because downgrades are not guaranteed to understand newer settings schemas.
 

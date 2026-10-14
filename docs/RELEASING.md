@@ -21,7 +21,9 @@ The backend tests use fixtures. CI also runs Python 3.11/3.13; builds/typechecks
 
 Commit reviewed changes and create `v<version>` at that exact commit. Before every push, obtain explicit maintainer confirmation for the commit/tag being pushed. This is the project's working Git safety rule. Do not push automatically from a packaging script.
 
-Tag pushes trigger Release. Its publication job validates tag/frontend/backend/changelog versions, runs backend tests and frontend validation, verifies the bundled runtime and builds the ZIP before publishing. Release notes come from the matching changelog section. A checksum asset is included.
+Tag pushes trigger Release. Its publication job validates tag/frontend/backend/changelog versions, runs backend tests and frontend validation (including updater regression tests), verifies the bundled runtime and builds the ZIP before publishing. Release notes come from the matching changelog section. A checksum asset is included.
+
+From 0.1.9 the plugin reads GitHub's latest stable release API. Keep `azeroth-addons.zip` and its SHA-256 asset versioned together; GitHub's ZIP asset digest is preferred, with the checksum file used when the API has no digest. Do not publish an unverifiable asset or redirect its metadata to another repository. Older installations need a manual upgrade once to gain the updater. The updater requests Decky's normal confirmation dialog; actual on-device reload/settings preservation remains a hardware test.
 
 Manual workflow dispatch requires an existing release tag and checks out that tag; it does not publish the current `main` branch under a guessed tag. Re-running publication can replace assets for an existing release, so verify that replacement is intended.
 

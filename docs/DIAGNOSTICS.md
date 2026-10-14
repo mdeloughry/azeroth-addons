@@ -10,6 +10,8 @@ Normal Steam "User canceled" rejections are not treated as failures. Actual unha
 
 ## Optional reporting
 
+Plugin update checks are separate from error reporting. Enabled by default from 0.1.9, they request public release metadata/checksums from GitHub, with the plugin version in the User-Agent. No provider token, device identifier, addon list or local path is included. GitHub receives normal network metadata such as your IP address. Disable automatic checks in Settings; manual checks and confirmed update downloads still contact GitHub. Background updater failures appear in Settings without repeatedly filling the error journal.
+
 Remote reporting is off by default. Enable **Send error reports** in Settings or Diagnostics to send redacted events to the maintainer's GlitchTip instance. The first-error prompt is optional; dismissing it keeps reporting off. There is no analytics/device identifier added by the plugin.
 
 Use **Preview what would be sent** before opting in. Payloads include error codes/messages/details, stack frames when available, plugin/engine/platform versions and operation context. Error messages and engine output can include **addon names, provider IDs and installation IDs**. These are not all stripped. Do not assume a report is anonymous simply because home paths and credentials are redacted. The destination server also receives normal connection metadata such as your IP address.
